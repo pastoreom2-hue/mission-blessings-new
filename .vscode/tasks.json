@@ -1,0 +1,36 @@
+{
+  "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "openMissionBlessingsBrowser",
+      "type": "command",
+      "command": "simpleBrowser.api.open",
+      "args": ["http://localhost:3000/"]
+    }
+  ],
+  "tasks": [
+    {
+      "label": "Open in Cursor Browser",
+      "type": "shell",
+      "command": "echo ${input:openMissionBlessingsBrowser}",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "never",
+        "panel": "shared",
+        "close": true
+      }
+    },
+    {
+      "label": "Dev Server + Cursor Browser",
+      "dependsOrder": "sequence",
+      "dependsOn": ["npm: dev", "Wait for dev server", "Open in Cursor Browser"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Wait for dev server",
+      "type": "shell",
+      "command": "powershell -NoProfile -Command \"Start-Sleep -Seconds 2\"",
+      "problemMatcher": []
+    }
+  ]
+}

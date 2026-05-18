@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: missionFields
+    // Fields: id, name, description, type
+    //
+    // Collection: supporters
+    // Fields: id, nameEn, nameKh, isPastor, churchAttendance, faithStatus, qrCodeData, missionFieldId, updatedAt
+    //
+    // Collection: donations
+    // Fields: id, supporterId, amount, date, acknowledgment, missionFieldId
+    //
+    // Collection: activities
+    // Fields: id, missionFieldId, title, description, date, photoUrls
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isDirector() {
+      return isAuthenticated() && 
+        request.auth.token.email == "pastoreom2@gmail.com";
+    }
+
+    function isValidPrayerRequest(data) {
+      return data.userName is string && data.userName.size() > 0 && data.userName.size() <= 100 &&
+             data.type in ['Request', 'Thanksgiving'] &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 2000 &&
+             data.createdAt is timestamp;
+    }
+
+    match /missionFields/{fieldId} {
+      allow read: if true;
+      allow write: if isDirector();
+    }
+
+    match /supporters/{supporterId} {
+      allow read: if true;
+      allow write: if isDirector();
+    }
+
+    match /donations/{donationId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isDirector();
+    }
+
+    match /donors/{donorId} {
+      allow read, write: if isDirector();
+    }
+
+    match /activities/{activityId} {
+      allow read: if true;
+      allow write: if isDirector();
+    }
+
+    match /prayerRequests/{requestId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isDirector();
+    }
+
+    match /daily_word/{document=**} {
+      allow read: if true;
+      allow write: if isDirector();
+    }
+
+    match /gallery_videos/{videoId} {
+      allow read: if true;
+      allow write: if isDirector();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

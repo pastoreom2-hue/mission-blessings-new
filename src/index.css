@@ -1,0 +1,92 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Playfair+Display:ital,wght@0,700;0,800;0,900;1,700;1,800;1,900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Cormorant Garamond", serif;
+  --font-display: "Playfair Display", serif;
+  
+  --color-sage-50: #f8faf8;
+  --color-sage-100: #edf2ed;
+  --color-sage-200: #dce6dc;
+  --color-sage-600: #5c705c;
+  --color-sage-800: #3a473a;
+  --color-sage-900: #1a241a;
+  --color-vibrant-green: #10b981;
+  --color-vibrant-green-dark: #059669;
+  --color-warm-amber: #d97706;
+  --color-soft-coral: #f43f5e;
+}
+
+@layer base {
+  body {
+    @apply bg-sage-50 text-slate-800 font-sans antialiased;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-[2rem] shadow-sm border border-sage-100 transition-all duration-300;
+  }
+  
+  .card:hover {
+    @apply shadow-md border-sage-200;
+  }
+}
+
+/* Global Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+/* Excel Table Scrollbar */
+.excel-container::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.excel-container::-webkit-scrollbar-track {
+  background: #f1f5f1 !important;
+  border-radius: 0px;
+}
+
+.excel-container::-webkit-scrollbar-thumb {
+  background: #cbd5cb !important;
+  border-radius: 6px;
+  border: 3px solid #f1f5f1;
+}
+
+.excel-container::-webkit-scrollbar-thumb:hover {
+  background: #a3b3a3 !important;
+}
+
+.excel-container {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5cb #f1f5f1;
+  direction: rtl;
+  overflow-x: scroll !important;
+  overflow-y: scroll !important;
+  border: 1px solid #e2e9e2;
+  background: #ffffff;
+}
+
+.excel-container-inner {
+  direction: ltr;
+  display: block;
+  width: max-content;
+  min-height: 100%;
+}

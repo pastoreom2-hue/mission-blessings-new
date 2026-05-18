@@ -1,0 +1,150 @@
+{
+  "entities": {
+    "MissionField": {
+      "title": "Mission Field",
+      "description": "A specific location or category of mission work (e.g., Cambodia, Mexico, USA).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["international", "domestic"] }
+      },
+      "required": ["id", "name", "type"]
+    },
+    "Supporter": {
+      "title": "Supporter",
+      "description": "A person being supported or a local partner in the mission field.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nameEn": { "type": "string" },
+        "nameKh": { "type": "string" },
+        "isPastor": { "type": "boolean" },
+        "churchAttendance": { "type": "string" },
+        "faithStatus": { "type": "string" },
+        "qrCodeData": { "type": "string" },
+        "missionFieldId": { "type": "string" },
+        "area": { "type": "string", "description": "Specific area or region within the mission field." },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "nameEn", "missionFieldId"]
+    },
+    "Donation": {
+      "title": "Donation",
+      "description": "Record of financial support received for a specific supporter.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "supporterId": { "type": "string" },
+        "donorId": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "acknowledgment": { "type": "string" },
+        "missionFieldId": { "type": "string" }
+      },
+      "required": ["id", "supporterId", "amount", "date"]
+    },
+    "Donor": {
+      "title": "Donor",
+      "description": "A person or organization providing financial support.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "communicationPreference": { "type": "string", "enum": ["Email", "SMS", "None"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "email"]
+    },
+    "Activity": {
+      "title": "Activity",
+      "description": "Outreach activities and mission field news.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "missionFieldId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "photoUrls": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "title", "date"]
+    },
+    "PrayerRequest": {
+      "title": "Prayer Request",
+      "description": "Prayer requests and thanksgivings shared by the community.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "type": { "type": "string", "enum": ["Request", "Thanksgiving"] },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userName", "type", "content", "createdAt"]
+    },
+    "DailyWord": {
+      "title": "Daily Word Video",
+      "description": "The specific YouTube Video ID for the daily word service.",
+      "type": "object",
+      "properties": {
+        "videoId": { "type": "string" },
+        "language": { "type": "string", "enum": ["kr", "en"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["videoId", "language"]
+    },
+    "GalleryVideo": {
+      "title": "Gallery Video",
+      "description": "A video in the weekly archive gallery.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "lang": { "type": "string", "enum": ["ko", "en"] },
+        "day": { "type": "string", "enum": ["Mon", "Tue", "Wed", "Thu", "Fri"] },
+        "order": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "lang", "day"]
+    }
+  },
+  "firestore": {
+    "/missionFields/{fieldId}": {
+      "schema": "MissionField",
+      "description": "Core mission locations."
+    },
+    "/supporters/{supporterId}": {
+      "schema": "Supporter",
+      "description": "People being supported in mission fields."
+    },
+    "/donations/{donationId}": {
+      "schema": "Donation",
+      "description": "Financial support records."
+    },
+    "/donors/{donorId}": {
+      "schema": "Donor",
+      "description": "Information about people who give."
+    },
+    "/activities/{activityId}": {
+      "schema": "Activity",
+      "description": "Mission field activities and news."
+    },
+    "/prayerRequests/{requestId}": {
+      "schema": "PrayerRequest",
+      "description": "Community shared prayer requests and thanksgivings."
+    },
+    "/daily_word/{lang}": {
+      "schema": "DailyWord",
+      "description": "Management of daily word videos."
+    },
+    "/gallery_videos/{videoId}": {
+      "schema": "GalleryVideo",
+      "description": "Weekly archive gallery videos."
+    }
+  }
+}
