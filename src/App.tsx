@@ -1686,6 +1686,15 @@ function DonationSection() {
             </div>
           </div>
 
+          <div className="w-full max-w-2xl text-center">
+            <p className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">
+              ALL DONATIONS ARE TAX DEDUCTIBLE
+            </p>
+            <p className="mt-2 text-sm md:text-base font-medium text-slate-500">
+              모든 후원금은 세금 공제 혜택을 받을 수 있습니다
+            </p>
+          </div>
+
           <div className="pt-12 border-t border-slate-100 w-full text-center">
             <div className="bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-[3rem] p-12 text-white relative overflow-hidden shadow-2xl shadow-cyan-200">
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-10">
