@@ -19,8 +19,12 @@
 }
 
 @layer base {
+  html {
+    @apply overflow-x-hidden;
+  }
+
   body {
-    @apply bg-sage-50 text-slate-800 font-sans antialiased;
+    @apply bg-sage-50 text-slate-800 font-sans antialiased overflow-x-hidden;
   }
 }
 

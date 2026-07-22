@@ -625,18 +625,18 @@ export default function App() {
       <div className="min-h-screen flex flex-col bg-slate-50">
         {/* Navigation */}
         <nav className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div className="flex items-center gap-3 cursor-pointer" onClick={() => { setMainTab('charity'); setActiveSubTab('cambodia'); }}>
-              <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-100">
-                <Heart className="text-white w-6 h-6 fill-white" />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 min-h-16 py-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 cursor-pointer" onClick={() => { setMainTab('charity'); setActiveSubTab('cambodia'); }}>
+              <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-100">
+                <Heart className="text-white w-5 h-5 sm:w-6 sm:h-6 fill-white" />
               </div>
-              <div>
-                <h1 className="text-2xl font-black tracking-tight text-slate-900 leading-none">Mission Blessings</h1>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-600 font-black mt-1">Outreach Foundation</p>
+              <div className="min-w-0">
+                <h1 className="text-lg sm:text-xl md:text-2xl font-black tracking-tight text-slate-900 leading-none truncate">Mission Blessings</h1>
+                <p className="text-[11px] sm:text-[10px] uppercase tracking-[0.12em] sm:tracking-[0.2em] text-emerald-600 font-black mt-1 truncate">Outreach Foundation</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
               {user && isAdmin && (
                 <div className="hidden md:flex items-center gap-2">
                   {missionFields.length === 0 && (
@@ -657,7 +657,7 @@ export default function App() {
                 </div>
               )}
               {user ? (
-                <div className="flex items-center gap-4 pl-4 border-l border-slate-200">
+                <div className="flex items-center gap-2 sm:gap-4 sm:pl-4 sm:border-l border-slate-200">
                   <div className="text-right hidden sm:block">
                     <p className="text-xs font-bold text-slate-800">{user.displayName}</p>
                     <div className="flex items-center justify-end gap-1 mt-0.5">
@@ -675,7 +675,7 @@ export default function App() {
                       )}
                     </div>
                   </div>
-                  <button onClick={handleLogout} className="p-2 hover:bg-slate-100 rounded-lg transition-all text-slate-400 hover:text-slate-600" title="Logout">
+                  <button onClick={handleLogout} className="p-2.5 sm:p-2 hover:bg-slate-100 rounded-lg transition-all text-slate-400 hover:text-slate-600" title="Logout">
                     <LogOut className="w-5 h-5" />
                   </button>
                 </div>
@@ -697,31 +697,31 @@ export default function App() {
               <div className="absolute inset-0 bg-gradient-to-b from-slate-900/40 via-transparent to-white/95" />
             </div>
             
-            <div className="relative z-10 text-center px-4 max-w-6xl -mt-7">
+            <div className="relative z-10 text-center px-4 max-w-6xl -mt-7 w-full">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 1 }}
                 className="flex flex-col items-center"
               >
-                <div className="mb-6 px-10 py-3 bg-white/5 backdrop-blur-sm border border-white/20 rounded-full">
-                  <span className="text-[10px] md:text-[13px] font-bold uppercase tracking-[0.5em] md:tracking-[1em] text-white/90">
+                <div className="mb-5 sm:mb-6 px-5 sm:px-10 py-2.5 sm:py-3 bg-white/5 backdrop-blur-sm border border-white/20 rounded-full max-w-full">
+                  <span className="text-xs sm:text-[11px] md:text-[13px] font-bold uppercase tracking-[0.25em] sm:tracking-[0.5em] md:tracking-[1em] text-white/90">
                     Spreading Joy • Sharing Hope
                   </span>
                 </div>
 
-                <h1 className="text-4xl md:text-7xl font-sans font-bold text-white mb-6 md:mb-10 tracking-tight leading-[1.05] drop-shadow-lg">
+                <h1 className="text-[2rem] sm:text-4xl md:text-7xl font-sans font-bold text-white mb-6 md:mb-10 tracking-tight leading-[1.1] drop-shadow-lg">
                   Connecting Hearts <br/> Across Borders
                 </h1>
                 
-                <div className="flex flex-col items-center gap-3 md:gap-4">
-                  <div className="text-2xl md:text-4xl font-serif font-black italic text-white drop-shadow-lg">
+                <div className="flex flex-col items-center gap-3 md:gap-4 px-2">
+                  <div className="text-xl sm:text-2xl md:text-4xl font-serif font-black italic text-white drop-shadow-lg">
                     "땅 끝에서 오게하라"
                   </div>
-                  <div className="text-sm md:text-base font-display font-extrabold italic text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.85),0_2px_12px_rgba(0,0,0,0.55)]">
+                  <div className="text-sm sm:text-sm md:text-base font-display font-extrabold italic text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.85),0_2px_12px_rgba(0,0,0,0.55)]">
                     "Bring them from the ends of the earth"
                   </div>
-                  <div className="text-[10px] md:text-xs font-black tracking-[0.6em] uppercase text-white drop-shadow-lg mt-3">
+                  <div className="text-[11px] sm:text-[10px] md:text-xs font-black tracking-[0.35em] sm:tracking-[0.6em] uppercase text-white drop-shadow-lg mt-3">
                     ISAIAH 43:6
                   </div>
                 </div>
@@ -729,57 +729,57 @@ export default function App() {
             </div>
           </section>
 
-          <div className="max-w-7xl mx-auto px-6 mt-4 relative z-20 pb-32">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4 relative z-20 pb-32 overflow-x-hidden">
             {/* Main Tabs */}
-            <div className="flex flex-col items-center gap-12">
-              <div className="flex items-center bg-white p-2 rounded-[3rem] shadow-2xl shadow-slate-900/10 border border-slate-100 w-full max-w-4xl">
+            <div className="flex flex-col items-center gap-6 sm:gap-10 md:gap-12 w-full">
+              <div className="grid grid-cols-2 gap-2 md:flex md:items-stretch bg-white p-2 sm:p-2.5 rounded-3xl md:rounded-[3rem] shadow-2xl shadow-slate-900/10 border border-slate-100 w-full max-w-4xl">
                 <button
                   onClick={() => setMainTab('charity')}
                   className={cn(
-                    "flex-1 py-5 rounded-[2.5rem] transition-all font-black text-lg flex items-center justify-center gap-3 group",
+                    "min-w-0 py-4 px-3 sm:py-4 sm:px-3 md:flex-1 md:py-5 md:px-4 rounded-2xl md:rounded-[2.5rem] transition-all font-black text-sm leading-snug sm:text-base md:text-lg flex flex-col md:flex-row items-center justify-center gap-1.5 sm:gap-2 md:gap-3 text-center group",
                     mainTab === 'charity' 
                       ? "bg-emerald-500 text-white shadow-xl shadow-emerald-200" 
                       : "text-slate-500 hover:bg-slate-50"
                   )}
                 >
-                  <Globe className={cn("w-6 h-6", mainTab === 'charity' ? "text-white/80" : "text-emerald-500")} />
-                  Charity & Mission
+                  <Globe className={cn("w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6 shrink-0", mainTab === 'charity' ? "text-white/80" : "text-emerald-500")} />
+                  <span className="break-words hyphens-auto">Charity & Mission</span>
                 </button>
                 <button
                   onClick={() => setMainTab('media')}
                   className={cn(
-                    "flex-1 py-5 rounded-[2.5rem] transition-all font-black text-lg flex items-center justify-center gap-3 group",
+                    "min-w-0 py-4 px-3 sm:py-4 sm:px-3 md:flex-1 md:py-5 md:px-4 rounded-2xl md:rounded-[2.5rem] transition-all font-black text-sm leading-snug sm:text-base md:text-lg flex flex-col md:flex-row items-center justify-center gap-1.5 sm:gap-2 md:gap-3 text-center group",
                     mainTab === 'media' 
                       ? "bg-emerald-500 text-white shadow-xl shadow-emerald-200" 
                       : "text-slate-500 hover:bg-slate-50"
                   )}
                 >
-                  <Youtube className={cn("w-6 h-6", mainTab === 'media' ? "text-white/80" : "text-emerald-500")} />
-                  Word of Blessings
+                  <Youtube className={cn("w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6 shrink-0", mainTab === 'media' ? "text-white/80" : "text-emerald-500")} />
+                  <span className="break-words hyphens-auto">Word of Blessings</span>
                 </button>
                 <button
                   onClick={() => setMainTab('prayer')}
                   className={cn(
-                    "flex-1 py-5 rounded-[2.5rem] transition-all font-black text-lg flex items-center justify-center gap-3 group",
+                    "min-w-0 py-4 px-3 sm:py-4 sm:px-3 md:flex-1 md:py-5 md:px-4 rounded-2xl md:rounded-[2.5rem] transition-all font-black text-sm leading-snug sm:text-base md:text-lg flex flex-col md:flex-row items-center justify-center gap-1.5 sm:gap-2 md:gap-3 text-center group",
                     mainTab === 'prayer' 
                       ? "bg-emerald-500 text-white shadow-xl shadow-emerald-200" 
                       : "text-slate-500 hover:bg-slate-50"
                   )}
                 >
-                  <Sparkles className={cn("w-6 h-6", mainTab === 'prayer' ? "text-white/80" : "text-emerald-500")} />
-                  Prayer Room
+                  <Sparkles className={cn("w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6 shrink-0", mainTab === 'prayer' ? "text-white/80" : "text-emerald-500")} />
+                  <span className="break-words hyphens-auto">Prayer Room</span>
                 </button>
                 <button
                   onClick={() => setMainTab('support')}
                   className={cn(
-                    "flex-1 py-5 rounded-[2.5rem] transition-all font-black text-lg flex items-center justify-center gap-3 group",
+                    "min-w-0 py-4 px-3 sm:py-4 sm:px-3 md:flex-1 md:py-5 md:px-4 rounded-2xl md:rounded-[2.5rem] transition-all font-black text-sm leading-snug sm:text-base md:text-lg flex flex-col md:flex-row items-center justify-center gap-1.5 sm:gap-2 md:gap-3 text-center group",
                     mainTab === 'support' 
                       ? "bg-emerald-500 text-white shadow-xl shadow-emerald-200" 
                       : "text-slate-500 hover:bg-slate-50"
                   )}
                 >
-                  <Heart className={cn("w-6 h-6", mainTab === 'support' ? "text-white/80" : "text-emerald-500")} />
-                  Support
+                  <Heart className={cn("w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6 shrink-0", mainTab === 'support' ? "text-white/80" : "text-emerald-500")} />
+                  <span className="break-words hyphens-auto">Support</span>
                 </button>
               </div>
 
@@ -789,7 +789,7 @@ export default function App() {
                   <button
                     onClick={() => setMainTab('donors')}
                     className={cn(
-                      "px-8 py-3 rounded-full transition-all font-bold text-sm flex items-center gap-2",
+                      "px-6 sm:px-8 py-3 rounded-full transition-all font-bold text-sm flex items-center gap-2",
                       mainTab === 'donors' 
                         ? "bg-slate-800 text-white shadow-lg shadow-slate-200" 
                         : "bg-white text-slate-500 border border-slate-200 hover:border-slate-300"
@@ -806,7 +806,7 @@ export default function App() {
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex flex-wrap justify-center gap-2"
+                  className="flex flex-wrap justify-center gap-2 sm:gap-2.5 w-full px-1"
                 >
                   {[
                     { id: 'cambodia', label: 'Cambodia' },
@@ -818,7 +818,7 @@ export default function App() {
                       key={sub.id}
                       onClick={() => setActiveSubTab(sub.id as any)}
                       className={cn(
-                        "px-6 py-2 rounded-full font-bold text-xs transition-all border-2",
+                        "px-4 sm:px-6 py-2.5 sm:py-2 rounded-full font-bold text-sm sm:text-xs transition-all border-2",
                         activeSubTab === sub.id
                           ? "bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-100"
                           : "bg-white border-slate-200 text-slate-500 hover:border-orange-200"
