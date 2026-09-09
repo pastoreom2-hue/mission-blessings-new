@@ -19,11 +19,13 @@ import {
   setDoc
 } from 'firebase/firestore';
 import { 
-  signInWithPopup, 
+  signInWithPopup,
+  getRedirectResult,
   GoogleAuthProvider, 
   onAuthStateChanged, 
   signOut,
-  User
+  User,
+  browserPopupRedirectResolver
 } from 'firebase/auth';
 import { db, auth } from './firebase';
 import { GoogleGenAI } from "@google/genai";
@@ -59,7 +61,9 @@ import {
   ExternalLink,
   Trash2,
   Type,
-  Settings
+  Settings,
+  ImagePlus,
+  ClipboardPaste
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -79,6 +83,7 @@ interface MissionField {
 interface Supporter {
   id: string;
   nameEn: string;
+  nameKh?: string;
   isPastor: boolean;
   churchAttendance: string;
   faithStatus: string;
@@ -92,6 +97,98 @@ interface Supporter {
   familySize?: number;
   nationality?: string;
   area?: string;
+  situationPrayer?: string;
+  otherNotes?: string;
+  photoUrls?: string[];
+}
+
+const HANGUL_RE = /[\uAC00-\uD7A3]/;
+
+function hasHangul(value?: string | null) {
+  return typeof value === 'string' && HANGUL_RE.test(value);
+}
+
+function uniqueNonEmpty(values: (string | undefined | null)[]) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const value of values) {
+    const text = (value || '').trim();
+    if (!text || seen.has(text)) continue;
+    seen.add(text);
+    result.push(text);
+  }
+  return result;
+}
+
+function composeCambodiaFields(supporter: Supporter) {
+  const name = hasHangul(supporter.nameEn)
+    ? supporter.nameEn
+    : (supporter.nameKh?.trim() || supporter.nameEn);
+
+  const koreanParts = uniqueNonEmpty([
+    supporter.faithStatus,
+    supporter.area,
+    supporter.needs,
+    supporter.bio,
+    supporter.additionalNotes,
+    supporter.churchAttendance,
+  ]).filter(hasHangul);
+
+  const situation = typeof supporter.situationPrayer === 'string'
+    ? supporter.situationPrayer
+    : (koreanParts.length > 0
+        ? koreanParts.join('\n')
+        : uniqueNonEmpty([supporter.needs, supporter.bio]).join('\n'));
+
+  const other = typeof supporter.otherNotes === 'string'
+    ? supporter.otherNotes
+    : (hasHangul(supporter.additionalNotes) ? '' : (supporter.additionalNotes || ''));
+
+  return { name, situation, other };
+}
+
+function getRecipientNameForSort(supporter: Supporter) {
+  return (composeCambodiaFields(supporter).name || supporter.nameEn || '').trim();
+}
+
+function isUnnamedRecipient(supporter: Supporter) {
+  return !getRecipientNameForSort(supporter);
+}
+
+const MAX_RECIPIENT_PHOTOS = 4;
+
+function compressImageFile(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      const maxEdge = 800;
+      let width = img.width;
+      let height = img.height;
+      if (width > maxEdge || height > maxEdge) {
+        const scale = maxEdge / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Could not process image'));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(objectUrl);
+      resolve(canvas.toDataURL('image/jpeg', 0.72));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Could not read image'));
+    };
+    img.src = objectUrl;
+  });
 }
 
 interface Donation {
@@ -206,6 +303,29 @@ interface FirestoreErrorInfo {
   }
 }
 
+function authErrorMessage(error: any) {
+  const code = error?.code || '';
+  if (code === 'auth/unauthorized-domain') {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+    const domainToAdd = host === '127.0.0.1' ? 'localhost' : host;
+    return `이 주소(${origin})가 Firebase 허용 도메인에 없습니다. Authentication → Settings → Authorized domains에 "${domainToAdd}" 를 추가해 주세요. 프로토콜과 포트는 넣지 않습니다.`;
+  }
+  if (code === 'auth/popup-blocked') {
+    return '브라우저가 로그인 창을 막았습니다. 팝업을 허용하거나, 다시 누르면 페이지 이동 방식으로 로그인합니다.';
+  }
+  if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+    return '로그인 창이 닫혔습니다. 다시 시도해 주세요. 팝업이 바로 닫히면 브라우저 팝업 차단을 해제해 주세요.';
+  }
+  if (code === 'auth/network-request-failed') {
+    return '네트워크 오류로 로그인하지 못했습니다. 인터넷 연결을 확인해 주세요.';
+  }
+  return '로그인 중 오류가 발생했습니다: ' + (error?.message || String(error));
+}
+
+let redirectResultHandled = false;
+let googleLoginInProgress = false;
+
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
@@ -289,7 +409,7 @@ export default function App() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  const isAdmin = user?.email?.toLowerCase() === 'pastoreom2@gmail.com';
+  const isAdmin = (user?.email || user?.providerData?.[0]?.email || '').toLowerCase() === 'pastoreom2@gmail.com';
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -301,6 +421,26 @@ export default function App() {
         console.log("User is logged out");
       }
     });
+
+    if (!redirectResultHandled) {
+      redirectResultHandled = true;
+      getRedirectResult(auth)
+        .then((result) => {
+          sessionStorage.removeItem('mb_admin_login');
+          if (result?.user) {
+            const email = result.user.email || result.user.providerData?.[0]?.email || '';
+            const adminGranted = email.toLowerCase() === 'pastoreom2@gmail.com';
+            if (!adminGranted) {
+              setLoginError(`로그인됨: ${email || result.user.displayName}. 관리자는 pastoreom2@gmail.com 계정으로 다시 로그인해 주세요.`);
+            }
+          }
+        })
+        .catch((error) => {
+          sessionStorage.removeItem('mb_admin_login');
+          setLoginError(authErrorMessage(error));
+        });
+    }
+
     return () => unsubscribe();
   }, []);
 
@@ -453,13 +593,6 @@ export default function App() {
       console.log("Mission fields snapshot received. Size:", snapshot.size);
       const fields = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MissionField));
       setMissionFields(fields);
-      
-      if (isAdmin && fields.length === 0) {
-        console.log("Admin detected empty database. Seeding initial mission data...");
-        seedInitialData();
-      } else if (fields.length === 0) {
-        console.log("Guest detected empty database. Waiting for admin to seed.");
-      }
       setLoading(false);
     }, (error) => {
       console.error("Critical: Mission fields fetch error", error);
@@ -471,14 +604,6 @@ export default function App() {
       const allSupporters = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Supporter));
       setSupporters(allSupporters);
     }, (error) => handleFirestoreError(error, OperationType.GET, 'supporters'));
-
-    let unsubDonors = () => {};
-    if (isAdmin) {
-      unsubDonors = onSnapshot(collection(db, 'donors'), (snapshot) => {
-        const allDonors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Donor));
-        setDonors(allDonors);
-      }, (error) => handleFirestoreError(error, OperationType.GET, 'donors'));
-    }
 
     const unsubDonations = onSnapshot(collection(db, 'donations'), (snapshot) => {
       setDonations(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Donation)));
@@ -503,36 +628,69 @@ export default function App() {
     return () => {
       unsubFields();
       unsubSupporters();
-      unsubDonors();
       unsubDonations();
       unsubActivities();
       unsubPrayer();
       unsubDailyWord();
     };
+  }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const unsubDonors = onSnapshot(collection(db, 'donors'), (snapshot) => {
+      const allDonors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Donor));
+      setDonors(allDonors);
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'donors'));
+    return () => unsubDonors();
   }, [isAdmin]);
 
-  const handleLogin = async () => {
-    if (isLoggingIn) return;
+  useEffect(() => {
+    if (!isAdmin || loading || missionFields.length > 0) return;
+    seedInitialData();
+  }, [isAdmin, loading, missionFields.length]);
+
+  const handleLogin = (event?: React.SyntheticEvent) => {
+    event?.preventDefault();
+    event?.stopPropagation();
+    if (googleLoginInProgress || isLoggingIn) return;
+    if (window.location.hostname === '127.0.0.1') {
+      window.location.replace(window.location.href.replace('127.0.0.1', 'localhost'));
+      return;
+    }
+
+    const provider = new GoogleAuthProvider();
+    provider.addScope('email');
+    provider.setCustomParameters({ prompt: 'select_account' });
+    googleLoginInProgress = true;
+    // Open Google's account picker in the same click, then show Signing In...
+    const popup = signInWithPopup(auth, provider, browserPopupRedirectResolver);
     setIsLoggingIn(true);
     setLoginError(null);
-    try {
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
-      const result = await signInWithPopup(auth, provider);
-      if (result.user) {
-        alert(`Logged in as: ${result.user.email}\n${result.user.email === 'pastoreom2@gmail.com' ? 'Admin Access Granted' : 'Guest Access Only'}`);
-      }
-    } catch (error: any) {
-      // Silence popup-closed errors as they are user-triggered
-      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-by-user') {
-        console.log("Login cancelled by user");
-        return;
-      }
-      console.error("Login failed", error);
-      setLoginError("로그인 중 오류가 발생했습니다: " + error.message);
-    } finally {
-      setIsLoggingIn(false);
-    }
+
+    popup
+      .then((result) => {
+        const email = result.user.email || result.user.providerData?.[0]?.email || '';
+        if (email.toLowerCase() !== 'pastoreom2@gmail.com') {
+          setLoginError(`로그인됨: ${email || result.user.displayName}. 관리자는 pastoreom2@gmail.com 계정으로 다시 로그인해 주세요.`);
+        } else {
+          setLoginError(null);
+        }
+      })
+      .catch((error: any) => {
+        if (
+          error?.code === 'auth/popup-closed-by-user' ||
+          error?.code === 'auth/cancelled-popup-request' ||
+          error?.code === 'auth/cancelled-by-user'
+        ) {
+          return;
+        }
+        console.error('Login failed', error);
+        setLoginError(authErrorMessage(error));
+      })
+      .finally(() => {
+        googleLoginInProgress = false;
+        setIsLoggingIn(false);
+      });
   };
 
   const handleLogout = () => {
@@ -579,7 +737,16 @@ export default function App() {
   };
 
   const exportToExcel = (fieldSupporters: Supporter[]) => {
+    const isCambodiaExport = activeSubTab === 'cambodia';
     const data = fieldSupporters.map(s => {
+      if (isCambodiaExport) {
+        const row = composeCambodiaFields(s);
+        return {
+          '수혜자 이름': row.name,
+          '현재상황 및 기도제목': row.situation,
+          '기타': row.other,
+        };
+      }
       const sDonations = donations.filter(d => d.supporterId === s.id);
       return {
         'Recipient Name': s.nameEn,
@@ -656,7 +823,18 @@ export default function App() {
                   </button>
                 </div>
               )}
-              {user ? (
+              {!isAdmin && (
+                <button
+                  type="button"
+                  onClick={handleLogin}
+                  disabled={isLoggingIn}
+                  className="px-3 sm:px-4 py-2 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-slate-700 transition-all flex items-center gap-2 shadow-sm disabled:opacity-60"
+                >
+                  {isLoggingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
+                  <span>{isLoggingIn ? 'Signing In...' : 'Admin Login'}</span>
+                </button>
+              )}
+              {user && (
                 <div className="flex items-center gap-2 sm:gap-4 sm:pl-4 sm:border-l border-slate-200">
                   <div className="text-right hidden sm:block">
                     <p className="text-xs font-bold text-slate-800">{user.displayName}</p>
@@ -679,10 +857,16 @@ export default function App() {
                     <LogOut className="w-5 h-5" />
                   </button>
                 </div>
-              ) : null}
+              )}
             </div>
           </div>
         </nav>
+        {loginError && (
+          <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 text-center">
+            <p className="text-sm text-amber-800 font-medium">{loginError}</p>
+            <p className="text-xs text-amber-700 mt-1">Chrome에서 http://localhost:3001/ 을 연 다음, pastoreom2@gmail.com 계정으로 선택해 주세요.</p>
+          </div>
+        )}
 
         <main className="flex-grow">
           {/* Hero Section */}
@@ -729,7 +913,7 @@ export default function App() {
             </div>
           </section>
 
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4 relative z-20 pb-32 overflow-x-hidden">
+          <div id="explore" className="max-w-7xl mx-auto px-4 sm:px-6 mt-4 relative z-20 pb-32 overflow-x-hidden scroll-mt-24">
             {/* Main Tabs */}
             <div className="flex flex-col items-center gap-6 sm:gap-10 md:gap-12 w-full">
               <div className="grid grid-cols-2 gap-2 md:flex md:items-stretch bg-white p-2 sm:p-2.5 rounded-3xl md:rounded-[3rem] shadow-2xl shadow-slate-900/10 border border-slate-100 w-full max-w-4xl">
@@ -861,10 +1045,15 @@ export default function App() {
                       supporters={(() => {
                         const fieldName = activeSubTab === 'other' ? 'Other Nations' : activeSubTab;
                         const field = missionFields.find(f => f.name.toLowerCase() === fieldName.toLowerCase());
-                        const fieldId = field?.id || 'temp-' + fieldName;
-                        
-                        const sourceSupporters = supporters.length > 0 ? supporters : MOCK_SUPPORTERS;
-                        return sourceSupporters.filter(s => s.missionFieldId === fieldId);
+                        const fallbackId = 'temp-' + fieldName;
+                        const fieldId = field?.id || fallbackId;
+                        if (supporters.length === 0) {
+                          return field && !field.id.startsWith('temp-')
+                            ? []
+                            : MOCK_SUPPORTERS.filter(s => s.missionFieldId === fallbackId);
+                        }
+                        const matched = supporters.filter(s => s.missionFieldId === fieldId);
+                        return matched.length > 0 ? matched : supporters.filter(s => s.missionFieldId === fallbackId);
                       })()}
                       donations={donations.length > 0 ? donations : MOCK_DONATIONS}
                       donors={donors.length > 0 ? donors : MOCK_DONORS}
@@ -1085,10 +1274,21 @@ function MissionFieldView({
   const activityTypes = Array.from(new Set(activities.map(a => a.type).filter(Boolean))) as string[];
 
   const sortedSupporters = [...supporters].sort((a, b) => {
+    const unnamedA = isUnnamedRecipient(a);
+    const unnamedB = isUnnamedRecipient(b);
+    if (unnamedA !== unnamedB) return unnamedA ? 1 : -1;
+
     if (sortColumn === 'totalDonations') {
       const totalA = donations.filter(d => d.supporterId === a.id).reduce((sum, d) => sum + d.amount, 0);
       const totalB = donations.filter(d => d.supporterId === b.id).reduce((sum, d) => sum + d.amount, 0);
       return sortDirection === 'asc' ? totalA - totalB : totalB - totalA;
+    }
+
+    const nameA = getRecipientNameForSort(a).toLowerCase();
+    const nameB = getRecipientNameForSort(b).toLowerCase();
+    if (sortColumn === 'nameEn' || sortColumn === 'nameKh') {
+      const cmp = nameA.localeCompare(nameB, ['en', 'ko'], { numeric: true, sensitivity: 'base' });
+      return sortDirection === 'asc' ? cmp : -cmp;
     }
     
     const valA = (a[sortColumn] || '').toString().toLowerCase();
@@ -1123,11 +1323,12 @@ function MissionFieldView({
           <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Mission Data Tracking (Excel View)</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {!user && (
+          {!isAdmin && (
             <button 
-              onClick={handleLogin} 
+              type="button"
+              onClick={handleLogin}
               disabled={isLoggingIn}
-              className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-all flex items-center gap-2"
+              className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-all flex items-center gap-2 disabled:opacity-60"
             >
               {isLoggingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
               <span>{isLoggingIn ? 'Signing In...' : 'Admin Login'}</span>
@@ -1245,6 +1446,55 @@ function MissionFieldView({
             )}
           </div>
         </div>
+      ) : missionField.name === 'Cambodia' ? (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
+          <div className="overflow-auto max-h-[640px]">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-slate-100 border-b border-slate-200 sticky top-0 z-20">
+                <tr>
+                  <th
+                    className="w-48 px-4 py-3 border-r border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors"
+                    onClick={() => handleSort('nameEn')}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-black text-slate-700 text-sm">수혜자 이름</span>
+                      <SortIcon column="nameEn" />
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 border-r border-slate-200 font-black text-slate-700 text-sm">현재상황 및 기도제목</th>
+                  <th className="w-56 px-4 py-3 border-r border-slate-200 font-black text-slate-700 text-sm">기타</th>
+                  <th className="w-80 px-4 py-3 font-black text-slate-700 text-sm">
+                    <div>사진</div>
+                    <div className="font-medium text-[10px] text-slate-400 tracking-normal mt-0.5">업로드 또는 붙여넣기 · 최대 4장</div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {sortedSupporters.map((supporter) => (
+                  <CambodiaSupporterRow
+                    key={supporter.id}
+                    supporter={supporter}
+                    isAdmin={isAdmin}
+                    handleLogin={handleLogin}
+                  />
+                ))}
+                {sortedSupporters.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-24 text-center bg-white">
+                      <Users className="w-12 h-12 mx-auto text-slate-200 mb-4" />
+                      <p className="text-lg font-bold text-slate-400 mb-2">캄보디아 수혜자 데이터가 없습니다.</p>
+                      <p className="text-sm text-slate-300">
+                        {isAdmin
+                          ? "수혜자를 추가하거나 Sync 버튼으로 명단을 채울 수 있습니다."
+                          : "디렉터가 미션 데이터를 준비하고 있습니다."}
+                      </p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xl font-mono text-[11px] overflow-hidden">
           <div ref={scrollRef} className="excel-container h-[600px]">
@@ -1303,14 +1553,6 @@ function MissionFieldView({
                               ? "As a Director, you can add new recipients or use the Sync button to populate this mission field."
                               : "The mission data is currently being updated by the Director. Please check back soon."}
                           </p>
-                          {isAdmin && missionField.name === 'Cambodia' && (
-                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-3 text-left">
-                              <Sparkles className="w-6 h-6 text-slate-500 shrink-0" />
-                              <p className="text-xs text-slate-700 font-medium leading-relaxed">
-                                <strong>Director Tip:</strong> Use the <strong>Sync Cambodia Names</strong> button at the top right to quickly add the requested 20 recipients.
-                              </p>
-                            </div>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -1323,7 +1565,7 @@ function MissionFieldView({
       )}
 
       {isAddingSupporter && (
-        <AddSupporterModal onClose={() => setIsAddingSupporter(false)} missionFieldId={missionField.id} />
+        <AddSupporterModal onClose={() => setIsAddingSupporter(false)} missionFieldId={missionField.id} simplified={missionField.name === 'Cambodia'} />
       )}
       {isAddingActivity && (
         <AddActivityModal onClose={() => setIsAddingActivity(false)} missionFieldId={missionField.id} />
@@ -1338,6 +1580,304 @@ function MissionFieldView({
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+function RecipientPhotosCell({ supporter, isAdmin, handleLogin }: { supporter: Supporter, isAdmin: boolean, handleLogin?: () => void }) {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [photoUrls, setPhotoUrls] = useState<string[]>(supporter.photoUrls || []);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPhotoUrls(supporter.photoUrls || []);
+  }, [supporter.id, supporter.photoUrls]);
+
+  const persistPhotos = async (next: string[]) => {
+    setPhotoUrls(next);
+    if (supporter.id.startsWith('mock-') || supporter.id.startsWith('temp-')) return;
+    try {
+      await updateDoc(doc(db, 'supporters', supporter.id), {
+        photoUrls: next,
+        updatedAt: Timestamp.now()
+      });
+    } catch (error) {
+      console.error('Error saving photos', error);
+    }
+  };
+
+  const addImageBlobs = async (files: Blob[]) => {
+    const remaining = MAX_RECIPIENT_PHOTOS - photoUrls.length;
+    if (remaining <= 0) {
+      alert(`사진은 최대 ${MAX_RECIPIENT_PHOTOS}장까지 넣을 수 있습니다.`);
+      return;
+    }
+    const selected = files.slice(0, remaining);
+    setIsUploading(true);
+    try {
+      const compressed = await Promise.all(selected.map(file => compressImageFile(file)));
+      await persistPhotos([...photoUrls, ...compressed]);
+    } catch (error) {
+      console.error('Error compressing photos', error);
+      alert('사진을 넣지 못했습니다. 다른 이미지로 다시 시도해 주세요.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleFiles = (list: FileList | File[] | null) => {
+    if (!list) return;
+    const images = Array.from(list).filter(file => file.type.startsWith('image/'));
+    if (images.length === 0) return;
+    addImageBlobs(images);
+  };
+
+  const handlePasteFromClipboard = async () => {
+    try {
+      const items = await navigator.clipboard.read();
+      const blobs: Blob[] = [];
+      for (const item of items) {
+        const type = item.types.find(t => t.startsWith('image/'));
+        if (type) blobs.push(await item.getType(type));
+      }
+      if (blobs.length === 0) {
+        alert('클립보드에 사진이 없습니다. 사진을 복사(Ctrl+C)한 다음 다시 눌러 주세요.');
+        return;
+      }
+      await addImageBlobs(blobs);
+    } catch {
+      alert('붙여넣기를 허용해 주세요. 또는 업로드 버튼으로 파일을 선택하세요.');
+    }
+  };
+
+  const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
+    const items = Array.from(event.clipboardData.items);
+    const imageItems = items.filter(item => item.type.startsWith('image/'));
+    if (imageItems.length === 0) return;
+    event.preventDefault();
+    const blobs = imageItems
+      .map(item => item.getAsFile())
+      .filter((file): file is File => !!file);
+    addImageBlobs(blobs);
+  };
+
+  const removePhoto = async (index: number) => {
+    if (!isAdmin) return;
+    const next = photoUrls.filter((_, i) => i !== index);
+    await persistPhotos(next);
+  };
+
+  return (
+    <>
+      <div
+        tabIndex={0}
+        onPaste={handlePaste}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragOver(true);
+        }}
+        onDragLeave={() => setIsDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragOver(false);
+          handleFiles(e.dataTransfer.files);
+        }}
+        className={cn(
+          "min-h-[72px] rounded-lg p-1.5 outline-none transition-all",
+          "border border-dashed border-slate-200 bg-slate-50/80",
+          isAdmin && "focus:border-slate-400",
+          isDragOver && "border-emerald-400 bg-emerald-50"
+        )}
+        title={isAdmin ? '사진을 붙여넣거나 업로드하세요 (최대 4장)' : '관리자 로그인 후 사진을 넣을 수 있습니다'}
+      >
+        <div className="flex flex-wrap items-center gap-1.5">
+          {photoUrls.map((url, index) => (
+            <div key={`${supporter.id}-photo-${index}`} className="relative w-14 h-14 rounded-md overflow-hidden border border-slate-200 bg-white group/photo">
+              <button type="button" onClick={() => setPreviewUrl(url)} className="w-full h-full">
+                <img src={url} alt={`수혜자 사진 ${index + 1}`} className="w-full h-full object-cover" />
+              </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => removePhoto(index)}
+                  className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover/photo:opacity-100 transition-opacity"
+                  title="사진 삭제"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        {photoUrls.length < MAX_RECIPIENT_PHOTOS && (
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+            <label className="px-2 py-1 rounded-md bg-white border border-slate-200 text-[10px] font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-700 transition-all flex items-center gap-1 cursor-pointer">
+              {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImagePlus className="w-3 h-3" />}
+              업로드
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  handleFiles(e.target.files);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={handlePasteFromClipboard}
+              disabled={isUploading}
+              className="px-2 py-1 rounded-md bg-white border border-slate-200 text-[10px] font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-700 transition-all flex items-center gap-1"
+            >
+              <ClipboardPaste className="w-3 h-3" />
+              붙여넣기
+            </button>
+            <span className="text-[9px] text-slate-400 font-medium">{photoUrls.length}/{MAX_RECIPIENT_PHOTOS}</span>
+          </div>
+        )}
+      </div>
+      <AnimatePresence>
+        {previewUrl && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPreviewUrl(null)}
+              className="absolute inset-0 bg-slate-900/80"
+            />
+            <motion.img
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              src={previewUrl}
+              alt="수혜자 사진"
+              className="relative z-10 max-h-[85vh] max-w-[90vw] rounded-2xl shadow-2xl object-contain"
+            />
+            <button
+              onClick={() => setPreviewUrl(null)}
+              className="absolute top-6 right-6 z-20 w-10 h-10 rounded-full bg-white/15 text-white flex items-center justify-center hover:bg-white/25"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
+
+function CambodiaSupporterRow({ supporter, isAdmin, handleLogin }: {
+  supporter: Supporter,
+  isAdmin: boolean,
+  handleLogin?: () => void,
+  key?: string
+}) {
+  const composed = composeCambodiaFields(supporter);
+  const [localName, setLocalName] = useState(composed.name);
+  const [localSituation, setLocalSituation] = useState(composed.situation);
+  const [localOther, setLocalOther] = useState(composed.other);
+
+  useEffect(() => {
+    const next = composeCambodiaFields(supporter);
+    setLocalName(next.name);
+    setLocalSituation(next.situation);
+    setLocalOther(next.other);
+  }, [
+    supporter.id,
+    supporter.nameEn,
+    supporter.nameKh,
+    supporter.faithStatus,
+    supporter.area,
+    supporter.needs,
+    supporter.bio,
+    supporter.additionalNotes,
+    supporter.churchAttendance,
+    supporter.situationPrayer,
+    supporter.otherNotes
+  ]);
+
+  const handleUpdate = async () => {
+    if (!isAdmin) return;
+    try {
+      await updateDoc(doc(db, 'supporters', supporter.id), {
+        nameEn: localName,
+        needs: localSituation,
+        situationPrayer: localSituation,
+        additionalNotes: localOther,
+        otherNotes: localOther,
+        updatedAt: Timestamp.now()
+      });
+    } catch (error) {
+      console.error("Error updating recipient", error);
+    }
+  };
+
+  const cellInputClass = cn(
+    "w-full outline-none px-3 py-2 rounded-lg transition-all text-sm leading-relaxed",
+    isAdmin ? "bg-slate-50 border border-slate-200 focus:border-slate-400 focus:bg-white" : "bg-transparent border-transparent cursor-default"
+  );
+
+  return (
+    <tr className="hover:bg-slate-50 transition-colors group align-top">
+      <td className="w-48 px-3 py-3 border-r border-slate-100">
+        <input
+          type="text"
+          value={localName}
+          onChange={(e) => setLocalName(e.target.value)}
+          onBlur={handleUpdate}
+          readOnly={!isAdmin}
+          className={cn(cellInputClass, "font-bold text-slate-800")}
+          placeholder="수혜자 이름"
+        />
+      </td>
+      <td className="px-3 py-3 border-r border-slate-100">
+        <textarea
+          value={localSituation}
+          onChange={(e) => setLocalSituation(e.target.value)}
+          onBlur={handleUpdate}
+          readOnly={!isAdmin}
+          className={cn(cellInputClass, "resize-y min-h-[72px] text-slate-700")}
+          placeholder="현재상황 및 기도제목"
+        />
+      </td>
+      <td className="w-56 px-3 py-3 border-r border-slate-100">
+        <div className="flex items-start gap-2">
+          <textarea
+            value={localOther}
+            onChange={(e) => setLocalOther(e.target.value)}
+            onBlur={handleUpdate}
+            readOnly={!isAdmin}
+            className={cn(cellInputClass, "resize-y min-h-[72px] text-slate-600")}
+            placeholder="기타"
+          />
+          {isAdmin && (
+            <button
+              onClick={async () => {
+                if (confirm('이 수혜자를 삭제할까요?')) {
+                  await deleteDoc(doc(db, 'supporters', supporter.id));
+                }
+              }}
+              className="p-2 mt-1 hover:bg-rose-50 rounded-lg text-slate-300 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100 shrink-0"
+              title="삭제"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </td>
+      <td className="w-72 px-3 py-3">
+        <RecipientPhotosCell
+          supporter={supporter}
+          isAdmin={isAdmin}
+          handleLogin={handleLogin}
+        />
+      </td>
+    </tr>
   );
 }
 
@@ -2152,7 +2692,7 @@ function AddDonorModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function AddSupporterModal({ onClose, missionFieldId }: { onClose: () => void, missionFieldId: string }) {
+function AddSupporterModal({ onClose, missionFieldId, simplified = false }: { onClose: () => void, missionFieldId: string, simplified?: boolean }) {
   const [formData, setFormData] = useState({
     nameEn: '',
     isPastor: false,
@@ -2162,13 +2702,27 @@ function AddSupporterModal({ onClose, missionFieldId }: { onClose: () => void, m
     needs: '',
     nationality: '',
     monthlyRate: 0,
-    familySize: 1
+    familySize: 1,
+    otherNotes: ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await addDoc(collection(db, 'supporters'), {
+      await addDoc(collection(db, 'supporters'), simplified ? {
+        nameEn: formData.nameEn,
+        isPastor: false,
+        churchAttendance: '',
+        faithStatus: '',
+        bio: '',
+        needs: formData.needs,
+        situationPrayer: formData.needs,
+        additionalNotes: formData.otherNotes,
+        otherNotes: formData.otherNotes,
+        missionFieldId,
+        qrCodeData: '',
+        updatedAt: Timestamp.now()
+      } : {
         ...formData,
         missionFieldId,
         qrCodeData: '',
@@ -2185,45 +2739,64 @@ function AddSupporterModal({ onClose, missionFieldId }: { onClose: () => void, m
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-xl rounded-[2.5rem] p-10 shadow-2xl">
-        <h3 className="text-3xl font-bold mb-8">Add New Recipient</h3>
+        <h3 className="text-3xl font-bold mb-8">{simplified ? '수혜자 추가' : 'Add New Recipient'}</h3>
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Recipient Name (EN)</label>
-              <input type="text" required className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all" value={formData.nameEn} onChange={e => setFormData({...formData, nameEn: e.target.value})} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">FAMILY SIZE</label>
-              <input type="number" required className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all" value={formData.familySize} onChange={e => setFormData({...formData, familySize: Number(e.target.value)})} />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Monthly Support ($)</label>
-              <input type="number" required className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all" value={formData.monthlyRate} onChange={e => setFormData({...formData, monthlyRate: Number(e.target.value)})} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Faith Level</label>
-              <input type="text" required className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all" value={formData.faithStatus} onChange={e => setFormData({...formData, faithStatus: e.target.value})} />
-            </div>
-          </div>
-          {isOtherNations && (
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nationality</label>
-              <input type="text" className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all" value={formData.nationality} onChange={e => setFormData({...formData, nationality: e.target.value})} placeholder="Country of origin" />
-            </div>
+          {simplified ? (
+            <>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">수혜자 이름</label>
+                <input type="text" required className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all" value={formData.nameEn} onChange={e => setFormData({...formData, nameEn: e.target.value})} placeholder="이름" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">현재상황 및 기도제목</label>
+                <textarea className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all min-h-[140px]" value={formData.needs} onChange={e => setFormData({...formData, needs: e.target.value})} placeholder="현재 상황과 기도제목을 적어 주세요" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">기타</label>
+                <textarea className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all min-h-[80px]" value={formData.otherNotes} onChange={e => setFormData({...formData, otherNotes: e.target.value})} placeholder="기타 메모" />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Recipient Name (EN)</label>
+                  <input type="text" required className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all" value={formData.nameEn} onChange={e => setFormData({...formData, nameEn: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">FAMILY SIZE</label>
+                  <input type="number" required className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all" value={formData.familySize} onChange={e => setFormData({...formData, familySize: Number(e.target.value)})} />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Monthly Support ($)</label>
+                  <input type="number" required className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all" value={formData.monthlyRate} onChange={e => setFormData({...formData, monthlyRate: Number(e.target.value)})} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Faith Level</label>
+                  <input type="text" required className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all" value={formData.faithStatus} onChange={e => setFormData({...formData, faithStatus: e.target.value})} />
+                </div>
+              </div>
+              {isOtherNations && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nationality</label>
+                  <input type="text" className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all" value={formData.nationality} onChange={e => setFormData({...formData, nationality: e.target.value})} placeholder="Country of origin" />
+                </div>
+              )}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Needs / Requests</label>
+                <input type="text" className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all" value={formData.needs} onChange={e => setFormData({...formData, needs: e.target.value})} placeholder="What is needed?" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Special Notes (EN)</label>
+                <textarea className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all min-h-[100px]" value={formData.bio} onChange={e => setFormData({...formData, bio: e.target.value})} placeholder="Write something about the recipient..." />
+              </div>
+            </>
           )}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Needs / Requests</label>
-            <input type="text" className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all" value={formData.needs} onChange={e => setFormData({...formData, needs: e.target.value})} placeholder="What is needed?" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Special Notes (EN)</label>
-            <textarea className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all min-h-[100px]" value={formData.bio} onChange={e => setFormData({...formData, bio: e.target.value})} placeholder="Write something about the recipient..." />
-          </div>
           <div className="flex gap-4 pt-4">
-            <button type="button" onClick={onClose} className="flex-1 btn-secondary">Cancel</button>
-            <button type="submit" className="flex-1 btn-primary">Add Recipient</button>
+            <button type="button" onClick={onClose} className="flex-1 btn-secondary">{simplified ? '취소' : 'Cancel'}</button>
+            <button type="submit" className="flex-1 btn-primary">{simplified ? '추가' : 'Add Recipient'}</button>
           </div>
         </form>
       </motion.div>
