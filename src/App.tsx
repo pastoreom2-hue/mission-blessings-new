@@ -158,6 +158,56 @@ function isSimplifiedMissionField(name?: string) {
   return name === 'Cambodia' || name === 'Mexico' || name === 'Other Nations';
 }
 
+function ExpandingField({
+  value,
+  onChange,
+  onBlur,
+  readOnly,
+  placeholder,
+  className,
+  minHeight = 48,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onBlur: () => void;
+  readOnly: boolean;
+  placeholder: string;
+  className?: string;
+  minHeight?: number;
+}) {
+  const ref = React.useRef<HTMLTextAreaElement>(null);
+
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(el.scrollHeight, minHeight)}px`;
+  }, [value, minHeight]);
+
+  if (readOnly) {
+    return (
+      <p className={cn('text-[16px] leading-7 text-slate-800 whitespace-pre-wrap break-words', className)}>
+        {value || <span className="text-slate-400">{placeholder}</span>}
+      </p>
+    );
+  }
+
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
+      placeholder={placeholder}
+      rows={1}
+      className={cn(
+        'w-full resize-none overflow-hidden outline-none px-3 py-2 rounded-lg text-[16px] leading-7 bg-slate-50 border border-slate-200 focus:border-slate-400 focus:bg-white',
+        className
+      )}
+    />
+  );
+}
+
 function isUnnamedRecipient(supporter: Supporter) {
   return !getRecipientNameForSort(supporter);
 }
@@ -877,7 +927,7 @@ export default function App() {
 
         <main className="flex-grow">
           {/* Hero Section */}
-          <section className="relative h-[80vh] flex items-center justify-center overflow-hidden">
+          <section className="relative h-[52vh] sm:h-[80vh] flex items-center justify-center overflow-hidden">
             <div className="absolute inset-0">
               <img 
                 src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&q=80&w=1920" 
@@ -920,7 +970,7 @@ export default function App() {
             </div>
           </section>
 
-          <div id="explore" className="max-w-7xl mx-auto px-4 sm:px-6 mt-4 relative z-20 pb-32 overflow-x-hidden scroll-mt-24">
+          <div id="explore" className="max-w-7xl mx-auto px-3 sm:px-6 mt-4 relative z-20 pb-32 scroll-mt-24">
             {/* Main Tabs */}
             <div className="flex flex-col items-center gap-6 sm:gap-10 md:gap-12 w-full">
               <div className="grid grid-cols-2 gap-2 md:flex md:items-stretch bg-white p-2 sm:p-2.5 rounded-3xl md:rounded-[3rem] shadow-2xl shadow-slate-900/10 border border-slate-100 w-full max-w-4xl">
@@ -1326,7 +1376,7 @@ function MissionFieldView({
     <div className="space-y-12">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h2 className="text-4xl font-black text-slate-800 mb-1">{missionField.name}</h2>
+          <h2 className="text-2xl sm:text-4xl font-black text-slate-800 mb-1">{missionField.name}</h2>
           <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Mission Data Tracking (Excel View)</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -1454,54 +1504,87 @@ function MissionFieldView({
           </div>
         </div>
       ) : isSimplifiedMissionField(missionField.name) ? (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
-          <div className="overflow-auto max-h-[640px]">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-100 border-b border-slate-200 sticky top-0 z-20">
-                <tr>
-                  <th
-                    className="w-48 px-4 py-3 border-r border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors"
-                    onClick={() => handleSort('nameEn')}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-black text-slate-700 text-sm">수혜자 이름</span>
-                      <SortIcon column="nameEn" />
-                    </div>
-                  </th>
-                  <th className="px-4 py-3 border-r border-slate-200 font-black text-slate-700 text-sm">현재상황 및 기도제목</th>
-                  <th className="w-56 px-4 py-3 border-r border-slate-200 font-black text-slate-700 text-sm">기타</th>
-                  <th className="w-80 px-4 py-3 font-black text-slate-700 text-sm">
-                    <div>사진</div>
-                    <div className="font-medium text-[10px] text-slate-400 tracking-normal mt-0.5">업로드 또는 붙여넣기 · 최대 4장</div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {sortedSupporters.map((supporter) => (
-                  <CambodiaSupporterRow
-                    key={supporter.id}
-                    supporter={supporter}
-                    isAdmin={isAdmin}
-                    handleLogin={handleLogin}
-                  />
-                ))}
-                {sortedSupporters.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-24 text-center bg-white">
-                      <Users className="w-12 h-12 mx-auto text-slate-200 mb-4" />
-                      <p className="text-lg font-bold text-slate-400 mb-2">{missionField.name} 수혜자 데이터가 없습니다.</p>
-                      <p className="text-sm text-slate-300">
-                        {isAdmin
-                          ? "수혜자를 추가하거나 Sync 버튼으로 명단을 채울 수 있습니다."
-                          : "디렉터가 미션 데이터를 준비하고 있습니다."}
-                      </p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+        <>
+          <div className="lg:hidden space-y-4">
+            <button
+              type="button"
+              onClick={() => handleSort('nameEn')}
+              className="w-full flex items-center justify-between px-1 py-1 text-left"
+            >
+              <span className="font-black text-slate-700 text-sm">수혜자 이름순</span>
+              <SortIcon column="nameEn" />
+            </button>
+            {sortedSupporters.map((supporter) => (
+              <CambodiaSupporterRow
+                key={`card-${supporter.id}`}
+                supporter={supporter}
+                isAdmin={isAdmin}
+                handleLogin={handleLogin}
+                variant="card"
+              />
+            ))}
+            {sortedSupporters.length === 0 && (
+              <div className="px-6 py-16 text-center bg-white rounded-2xl border border-slate-200">
+                <Users className="w-12 h-12 mx-auto text-slate-200 mb-4" />
+                <p className="text-lg font-bold text-slate-400 mb-2">{missionField.name} 수혜자 데이터가 없습니다.</p>
+                <p className="text-sm text-slate-300">
+                  {isAdmin
+                    ? "수혜자를 추가하거나 Sync 버튼으로 명단을 채울 수 있습니다."
+                    : "디렉터가 미션 데이터를 준비하고 있습니다."}
+                </p>
+              </div>
+            )}
           </div>
-        </div>
+          <div className="hidden lg:block bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
+            <div className="overflow-auto max-h-[640px]">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-100 border-b border-slate-200 sticky top-0 z-20">
+                  <tr>
+                    <th
+                      className="w-48 px-4 py-3 border-r border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors"
+                      onClick={() => handleSort('nameEn')}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-black text-slate-700 text-sm">수혜자 이름</span>
+                        <SortIcon column="nameEn" />
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 border-r border-slate-200 font-black text-slate-700 text-sm">현재상황 및 기도제목</th>
+                    <th className="w-56 px-4 py-3 border-r border-slate-200 font-black text-slate-700 text-sm">기타</th>
+                    <th className="w-80 px-4 py-3 font-black text-slate-700 text-sm">
+                      <div>사진</div>
+                      <div className="font-medium text-[10px] text-slate-400 tracking-normal mt-0.5">업로드 또는 붙여넣기 · 최대 4장</div>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {sortedSupporters.map((supporter) => (
+                    <CambodiaSupporterRow
+                      key={`row-${supporter.id}`}
+                      supporter={supporter}
+                      isAdmin={isAdmin}
+                      handleLogin={handleLogin}
+                      variant="row"
+                    />
+                  ))}
+                  {sortedSupporters.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-24 text-center bg-white">
+                        <Users className="w-12 h-12 mx-auto text-slate-200 mb-4" />
+                        <p className="text-lg font-bold text-slate-400 mb-2">{missionField.name} 수혜자 데이터가 없습니다.</p>
+                        <p className="text-sm text-slate-300">
+                          {isAdmin
+                            ? "수혜자를 추가하거나 Sync 버튼으로 명단을 채울 수 있습니다."
+                            : "디렉터가 미션 데이터를 준비하고 있습니다."}
+                        </p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xl font-mono text-[11px] overflow-hidden">
           <div ref={scrollRef} className="excel-container h-[600px]">
@@ -1590,7 +1673,7 @@ function MissionFieldView({
   );
 }
 
-function RecipientPhotosCell({ supporter, isAdmin, handleLogin }: { supporter: Supporter, isAdmin: boolean, handleLogin?: () => void }) {
+function RecipientPhotosCell({ supporter, isAdmin, handleLogin, size = 'sm' }: { supporter: Supporter, isAdmin: boolean, handleLogin?: () => void, size?: 'sm' | 'lg' }) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [photoUrls, setPhotoUrls] = useState<string[]>(supporter.photoUrls || []);
   const [isUploading, setIsUploading] = useState(false);
@@ -1700,7 +1783,7 @@ function RecipientPhotosCell({ supporter, isAdmin, handleLogin }: { supporter: S
       >
         <div className="flex flex-wrap items-center gap-1.5">
           {photoUrls.map((url, index) => (
-            <div key={`${supporter.id}-photo-${index}`} className="relative w-14 h-14 rounded-md overflow-hidden border border-slate-200 bg-white group/photo">
+            <div key={`${supporter.id}-photo-${index}`} className={cn("relative rounded-md overflow-hidden border border-slate-200 bg-white group/photo", size === 'lg' ? "w-20 h-20" : "w-14 h-14")}>
               <button type="button" onClick={() => setPreviewUrl(url)} className="w-full h-full">
                 <img src={url} alt={`수혜자 사진 ${index + 1}`} className="w-full h-full object-cover" />
               </button>
@@ -1778,10 +1861,11 @@ function RecipientPhotosCell({ supporter, isAdmin, handleLogin }: { supporter: S
   );
 }
 
-function CambodiaSupporterRow({ supporter, isAdmin, handleLogin }: {
+function CambodiaSupporterRow({ supporter, isAdmin, handleLogin, variant = 'row' }: {
   supporter: Supporter,
   isAdmin: boolean,
   handleLogin?: () => void,
+  variant?: 'row' | 'card',
   key?: string
 }) {
   const composed = composeCambodiaFields(supporter);
@@ -1829,6 +1913,85 @@ function CambodiaSupporterRow({ supporter, isAdmin, handleLogin }: {
     isAdmin ? "bg-slate-50 border border-slate-200 focus:border-slate-400 focus:bg-white" : "bg-transparent border-transparent cursor-default"
   );
 
+  const deleteButton = isAdmin ? (
+    <button
+      onClick={async () => {
+        if (confirm('이 수혜자를 삭제할까요?')) {
+          await deleteDoc(doc(db, 'supporters', supporter.id));
+        }
+      }}
+      className={cn(
+        "p-2 hover:bg-rose-50 rounded-lg text-slate-300 hover:text-rose-500 transition-all shrink-0",
+        variant === 'row' && "mt-1 opacity-0 group-hover:opacity-100"
+      )}
+      title="삭제"
+    >
+      <Trash2 className="w-4 h-4" />
+    </button>
+  ) : null;
+
+  if (variant === 'card') {
+    return (
+      <article className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-4 min-w-0">
+        <div className="flex items-start gap-2">
+          <div className="flex-1 min-w-0">
+            {isAdmin ? (
+              <>
+                <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-1">수혜자 이름</p>
+                <input
+                  type="text"
+                  value={localName}
+                  onChange={(e) => setLocalName(e.target.value)}
+                  onBlur={handleUpdate}
+                  className="w-full outline-none px-3 py-2 rounded-lg font-bold text-[18px] leading-snug text-slate-900 bg-slate-50 border border-slate-200 focus:border-slate-400"
+                  placeholder="수혜자 이름"
+                />
+              </>
+            ) : (
+              <h3 className="text-[18px] font-black text-slate-900 leading-snug break-words">{localName || '이름 없음'}</h3>
+            )}
+          </div>
+          {deleteButton}
+        </div>
+        <div className="min-w-0">
+          <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">현재상황 및 기도제목</p>
+          <ExpandingField
+            value={localSituation}
+            onChange={setLocalSituation}
+            onBlur={handleUpdate}
+            readOnly={!isAdmin}
+            placeholder="현재상황 및 기도제목"
+            minHeight={120}
+            className="text-slate-800"
+          />
+        </div>
+        {(isAdmin || localOther.trim()) && (
+          <div className="min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">기타</p>
+            <ExpandingField
+              value={localOther}
+              onChange={setLocalOther}
+              onBlur={handleUpdate}
+              readOnly={!isAdmin}
+              placeholder="기타"
+              minHeight={72}
+              className="text-slate-600"
+            />
+          </div>
+        )}
+        <div className="min-w-0">
+          <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">사진</p>
+          <RecipientPhotosCell
+            supporter={supporter}
+            isAdmin={isAdmin}
+            handleLogin={handleLogin}
+            size="lg"
+          />
+        </div>
+      </article>
+    );
+  }
+
   return (
     <tr className="hover:bg-slate-50 transition-colors group align-top">
       <td className="w-48 px-3 py-3 border-r border-slate-100">
@@ -1862,19 +2025,7 @@ function CambodiaSupporterRow({ supporter, isAdmin, handleLogin }: {
             className={cn(cellInputClass, "resize-y min-h-[72px] text-slate-600")}
             placeholder="기타"
           />
-          {isAdmin && (
-            <button
-              onClick={async () => {
-                if (confirm('이 수혜자를 삭제할까요?')) {
-                  await deleteDoc(doc(db, 'supporters', supporter.id));
-                }
-              }}
-              className="p-2 mt-1 hover:bg-rose-50 rounded-lg text-slate-300 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100 shrink-0"
-              title="삭제"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
+          {deleteButton}
         </div>
       </td>
       <td className="w-72 px-3 py-3">
