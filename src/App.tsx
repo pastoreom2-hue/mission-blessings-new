@@ -142,13 +142,20 @@ function composeCambodiaFields(supporter: Supporter) {
 
   const other = typeof supporter.otherNotes === 'string'
     ? supporter.otherNotes
-    : (hasHangul(supporter.additionalNotes) ? '' : (supporter.additionalNotes || ''));
+    : uniqueNonEmpty([
+        hasHangul(supporter.additionalNotes) ? '' : supporter.additionalNotes,
+        supporter.nationality,
+      ]).join('\n');
 
   return { name, situation, other };
 }
 
 function getRecipientNameForSort(supporter: Supporter) {
   return (composeCambodiaFields(supporter).name || supporter.nameEn || '').trim();
+}
+
+function isSimplifiedMissionField(name?: string) {
+  return name === 'Cambodia' || name === 'Mexico' || name === 'Other Nations';
 }
 
 function isUnnamedRecipient(supporter: Supporter) {
@@ -737,9 +744,9 @@ export default function App() {
   };
 
   const exportToExcel = (fieldSupporters: Supporter[]) => {
-    const isCambodiaExport = activeSubTab === 'cambodia';
+    const isSimplifiedExport = activeSubTab === 'cambodia' || activeSubTab === 'mexico' || activeSubTab === 'other';
     const data = fieldSupporters.map(s => {
-      if (isCambodiaExport) {
+      if (isSimplifiedExport) {
         const row = composeCambodiaFields(s);
         return {
           '수혜자 이름': row.name,
@@ -1446,7 +1453,7 @@ function MissionFieldView({
             )}
           </div>
         </div>
-      ) : missionField.name === 'Cambodia' ? (
+      ) : isSimplifiedMissionField(missionField.name) ? (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
           <div className="overflow-auto max-h-[640px]">
             <table className="w-full text-left border-collapse">
@@ -1482,7 +1489,7 @@ function MissionFieldView({
                   <tr>
                     <td colSpan={4} className="px-6 py-24 text-center bg-white">
                       <Users className="w-12 h-12 mx-auto text-slate-200 mb-4" />
-                      <p className="text-lg font-bold text-slate-400 mb-2">캄보디아 수혜자 데이터가 없습니다.</p>
+                      <p className="text-lg font-bold text-slate-400 mb-2">{missionField.name} 수혜자 데이터가 없습니다.</p>
                       <p className="text-sm text-slate-300">
                         {isAdmin
                           ? "수혜자를 추가하거나 Sync 버튼으로 명단을 채울 수 있습니다."
@@ -1565,7 +1572,7 @@ function MissionFieldView({
       )}
 
       {isAddingSupporter && (
-        <AddSupporterModal onClose={() => setIsAddingSupporter(false)} missionFieldId={missionField.id} simplified={missionField.name === 'Cambodia'} />
+        <AddSupporterModal onClose={() => setIsAddingSupporter(false)} missionFieldId={missionField.id} simplified={isSimplifiedMissionField(missionField.name)} />
       )}
       {isAddingActivity && (
         <AddActivityModal onClose={() => setIsAddingActivity(false)} missionFieldId={missionField.id} />
