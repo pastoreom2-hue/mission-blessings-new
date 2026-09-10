@@ -70,6 +70,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import QRCode from "react-qr-code";
 import { cn } from './lib/utils';
 import * as XLSX from 'xlsx';
+import { LanguageSwitcher, LocalizedText, localizeRecipientCopy, useI18n } from './i18n';
 
 // --- Types ---
 
@@ -445,6 +446,7 @@ const MOCK_DONATIONS: Donation[] = [
 ];
 
 export default function App() {
+  const { t } = useI18n();
   const [user, setUser] = useState<User | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [directSupportId, setDirectSupportId] = useState<string | null>(null);
@@ -828,8 +830,8 @@ export default function App() {
         <div className="flex flex-col items-center gap-4">
           <Heart className="w-16 h-16 text-white animate-pulse" />
           <div className="text-center">
-            <p className="text-2xl font-bold text-white mb-1">기쁨을 불러오는 중...</p>
-            <p className="text-xs text-emerald-200 uppercase tracking-widest font-bold">Loading Eternal Joy</p>
+            <p className="text-2xl font-bold text-white mb-1">{t('loadingJoy')}</p>
+            <p className="text-xs text-emerald-200 uppercase tracking-widest font-bold">{t('loadingJoySub')}</p>
           </div>
           <button 
             onClick={() => setLoading(false)}
@@ -854,11 +856,12 @@ export default function App() {
               </div>
               <div className="min-w-0">
                 <h1 className="text-lg sm:text-xl md:text-2xl font-black tracking-tight text-slate-900 leading-none truncate">Mission Blessings</h1>
-                <p className="text-[11px] sm:text-[10px] uppercase tracking-[0.12em] sm:tracking-[0.2em] text-emerald-600 font-black mt-1 truncate">Outreach Foundation</p>
+                <p className="text-[11px] sm:text-[10px] uppercase tracking-[0.12em] sm:tracking-[0.2em] text-emerald-600 font-black mt-1 truncate">{t('outreachFoundation')}</p>
               </div>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+              <LanguageSwitcher />
               {user && isAdmin && (
                 <div className="hidden md:flex items-center gap-2">
                   {missionFields.length === 0 && (
@@ -886,7 +889,7 @@ export default function App() {
                   className="px-3 sm:px-4 py-2 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-slate-700 transition-all flex items-center gap-2 shadow-sm disabled:opacity-60"
                 >
                   {isLoggingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
-                  <span>{isLoggingIn ? 'Signing In...' : 'Admin Login'}</span>
+                  <span>{isLoggingIn ? t('signingIn') : t('adminLogin')}</span>
                 </button>
               )}
               {user && (
@@ -898,12 +901,12 @@ export default function App() {
                         <div className="flex items-center gap-1 bg-slate-600 text-white px-2 py-0.5 rounded-full">
                           <ShieldCheck className="w-3 h-3" />
                           <p className="text-[8px] uppercase tracking-wider font-black">
-                            Director
+                            {t('director')}
                           </p>
                         </div>
                       ) : (
                         <p className="text-[9px] uppercase tracking-wider font-bold text-slate-600">
-                          Guest Partner
+                          {t('guestPartner')}
                         </p>
                       )}
                     </div>
@@ -945,23 +948,27 @@ export default function App() {
               >
                 <div className="mb-5 sm:mb-6 px-5 sm:px-10 py-2.5 sm:py-3 bg-white/5 backdrop-blur-sm border border-white/20 rounded-full max-w-full">
                   <span className="text-xs sm:text-[11px] md:text-[13px] font-bold uppercase tracking-[0.25em] sm:tracking-[0.5em] md:tracking-[1em] text-white/90">
-                    Spreading Joy • Sharing Hope
+                    {t('spreadingJoy')}
                   </span>
                 </div>
 
                 <h1 className="text-[2rem] sm:text-4xl md:text-7xl font-sans font-bold text-white mb-6 md:mb-10 tracking-tight leading-[1.1] drop-shadow-lg">
-                  Connecting Hearts <br/> Across Borders
+                  {t('heroTitle1')} <br/> {t('heroTitle2')}
                 </h1>
                 
                 <div className="flex flex-col items-center gap-3 md:gap-4 px-2">
-                  <div className="text-xl sm:text-2xl md:text-4xl font-serif font-black italic text-white drop-shadow-lg">
-                    "땅 끝에서 오게하라"
-                  </div>
-                  <div className="text-sm sm:text-sm md:text-base font-display font-extrabold italic text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.85),0_2px_12px_rgba(0,0,0,0.55)]">
-                    "Bring them from the ends of the earth"
-                  </div>
+                  {t('verseKo') && (
+                    <div className="text-xl sm:text-2xl md:text-4xl font-serif font-black italic text-white drop-shadow-lg">
+                      "{t('verseKo')}"
+                    </div>
+                  )}
+                  {t('verseEn') && (
+                    <div className="text-sm sm:text-sm md:text-base font-display font-extrabold italic text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.85),0_2px_12px_rgba(0,0,0,0.55)]">
+                      "{t('verseEn')}"
+                    </div>
+                  )}
                   <div className="text-[11px] sm:text-[10px] md:text-xs font-black tracking-[0.35em] sm:tracking-[0.6em] uppercase text-white drop-shadow-lg mt-3">
-                    ISAIAH 43:6
+                    {t('verseRef')}
                   </div>
                 </div>
               </motion.div>
@@ -982,7 +989,7 @@ export default function App() {
                   )}
                 >
                   <Globe className={cn("w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6 shrink-0", mainTab === 'charity' ? "text-white/80" : "text-emerald-500")} />
-                  <span className="break-words hyphens-auto">Charity & Mission</span>
+                  <span className="break-words hyphens-auto">{t('tabCharity')}</span>
                 </button>
                 <button
                   onClick={() => setMainTab('media')}
@@ -994,7 +1001,7 @@ export default function App() {
                   )}
                 >
                   <Youtube className={cn("w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6 shrink-0", mainTab === 'media' ? "text-white/80" : "text-emerald-500")} />
-                  <span className="break-words hyphens-auto">Word of Blessings</span>
+                  <span className="break-words hyphens-auto">{t('tabWord')}</span>
                 </button>
                 <button
                   onClick={() => setMainTab('prayer')}
@@ -1006,7 +1013,7 @@ export default function App() {
                   )}
                 >
                   <Sparkles className={cn("w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6 shrink-0", mainTab === 'prayer' ? "text-white/80" : "text-emerald-500")} />
-                  <span className="break-words hyphens-auto">Prayer Room</span>
+                  <span className="break-words hyphens-auto">{t('tabPrayer')}</span>
                 </button>
                 <button
                   onClick={() => setMainTab('support')}
@@ -1018,7 +1025,7 @@ export default function App() {
                   )}
                 >
                   <Heart className={cn("w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6 shrink-0", mainTab === 'support' ? "text-white/80" : "text-emerald-500")} />
-                  <span className="break-words hyphens-auto">Support</span>
+                  <span className="break-words hyphens-auto">{t('tabSupport')}</span>
                 </button>
               </div>
 
@@ -1035,7 +1042,7 @@ export default function App() {
                     )}
                   >
                     <Users className="w-4 h-4" />
-                    Admin Panel
+                    {t('adminPanel')}
                   </button>
                 </div>
               )}
@@ -1048,10 +1055,10 @@ export default function App() {
                   className="flex flex-wrap justify-center gap-2 sm:gap-2.5 w-full px-1"
                 >
                   {[
-                    { id: 'cambodia', label: 'Cambodia' },
-                    { id: 'mexico', label: 'Mexico' },
-                    { id: 'usa', label: 'USA' },
-                    { id: 'other', label: 'Other Nations' }
+                    { id: 'cambodia', label: t('cambodia') },
+                    { id: 'mexico', label: t('mexico') },
+                    { id: 'usa', label: t('usa') },
+                    { id: 'other', label: t('otherNations') }
                   ].map((sub) => (
                     <button
                       key={sub.id}
@@ -1210,11 +1217,11 @@ export default function App() {
               </div>
               <h3 className="text-2xl font-bold">Mission Blessings Outreach Foundation</h3>
               <p className="text-slate-400 max-w-xl mx-auto">
-                A California Religious Nonprofit (EIN: 41-4018824) dedicated to spreading joy and hope through transparent mission support.
+                {t('footerBlurb')}
               </p>
               <div className="pt-8 border-t border-white/10 w-full">
                 <p className="text-[10px] uppercase tracking-[0.4em] text-slate-500 font-black">
-                  © {new Date().getFullYear()} Mission Blessings. All Rights Reserved.
+                  © {new Date().getFullYear()} Mission Blessings. {t('allRights')}
                 </p>
               </div>
             </div>
@@ -1257,6 +1264,7 @@ function MissionFieldView({
   const [showRegistration, setShowRegistration] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  const { t } = useI18n();
 
   /* Ensure table starts at the left side in the RTL container */
   React.useLayoutEffect(() => {
@@ -1374,8 +1382,14 @@ function MissionFieldView({
     <div className="space-y-12">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h2 className="text-2xl sm:text-4xl font-black text-slate-800 mb-1">{missionField.name}</h2>
-          <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Mission Data Tracking (Excel View)</p>
+          <h2 className="text-2xl sm:text-4xl font-black text-slate-800 mb-1">
+            {missionField.name === 'Cambodia' ? t('cambodia')
+              : missionField.name === 'Mexico' ? t('mexico')
+              : missionField.name === 'USA' ? t('usa')
+              : missionField.name === 'Other Nations' ? t('otherNations')
+              : missionField.name}
+          </h2>
+          <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">{t('missionTracking')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {!isAdmin && (
@@ -1386,12 +1400,12 @@ function MissionFieldView({
               className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-all flex items-center gap-2 disabled:opacity-60"
             >
               {isLoggingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
-              <span>{isLoggingIn ? 'Signing In...' : 'Admin Login'}</span>
+              <span>{isLoggingIn ? t('signingIn') : t('adminLogin')}</span>
             </button>
           )}
           <button onClick={onExport} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-all flex items-center gap-2">
             <FileSpreadsheet className="w-4 h-4" />
-            <span>Export List</span>
+            <span>{t('exportList')}</span>
           </button>
           
           {isAdmin && missionField.name === 'Cambodia' && (
@@ -1435,7 +1449,7 @@ function MissionFieldView({
               className="px-4 py-2 bg-slate-600 text-white rounded-lg text-xs font-bold hover:bg-slate-700 transition-all flex items-center gap-2 shadow-md shadow-slate-100"
             >
               <Plus className="w-4 h-4" />
-              <span>Add {type === 'usa' ? 'Activity' : 'Recipient'}</span>
+              <span>{type === 'usa' ? t('addActivity') : t('addRecipient')}</span>
             </button>
           )}
         </div>
@@ -1509,7 +1523,7 @@ function MissionFieldView({
               onClick={() => handleSort('nameEn')}
               className="w-full flex items-center justify-between px-1 py-1 text-left"
             >
-              <span className="font-black text-slate-700 text-sm">수혜자 이름순</span>
+              <span className="font-black text-slate-700 text-sm">{t('sortByName')}</span>
               <SortIcon column="nameEn" />
             </button>
             {sortedSupporters.map((supporter) => (
@@ -1525,11 +1539,11 @@ function MissionFieldView({
             {sortedSupporters.length === 0 && (
               <div className="px-6 py-16 text-center bg-white rounded-2xl border border-slate-200">
                 <Users className="w-12 h-12 mx-auto text-slate-200 mb-4" />
-                <p className="text-lg font-bold text-slate-400 mb-2">{missionField.name} 수혜자 데이터가 없습니다.</p>
+                <p className="text-lg font-bold text-slate-400 mb-2">{t('noRecipients')}</p>
                 <p className="text-sm text-slate-300">
                   {isAdmin
-                    ? "수혜자를 추가하거나 Sync 버튼으로 명단을 채울 수 있습니다."
-                    : "디렉터가 미션 데이터를 준비하고 있습니다."}
+                    ? t('noRecipientsAdmin')
+                    : t('noRecipientsGuest')}
                 </p>
               </div>
             )}
@@ -1544,18 +1558,18 @@ function MissionFieldView({
                       onClick={() => handleSort('nameEn')}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-black text-slate-700 text-sm">수혜자 이름</span>
+                        <span className="font-black text-slate-700 text-sm">{t('recipientName')}</span>
                         <SortIcon column="nameEn" />
                       </div>
                     </th>
                     {missionField.name === 'Other Nations' && (
-                      <th className="w-36 px-4 py-3 border-r border-slate-200 font-black text-slate-700 text-sm">국적</th>
+                      <th className="w-36 px-4 py-3 border-r border-slate-200 font-black text-slate-700 text-sm">{t('nationality')}</th>
                     )}
-                    <th className="px-4 py-3 border-r border-slate-200 font-black text-slate-700 text-sm">현재상황 및 기도제목</th>
-                    <th className="w-56 px-4 py-3 border-r border-slate-200 font-black text-slate-700 text-sm">기타</th>
+                    <th className="px-4 py-3 border-r border-slate-200 font-black text-slate-700 text-sm">{t('situationPrayer')}</th>
+                    <th className="w-56 px-4 py-3 border-r border-slate-200 font-black text-slate-700 text-sm">{t('other')}</th>
                     <th className="w-80 px-4 py-3 font-black text-slate-700 text-sm">
-                      <div>사진</div>
-                      <div className="font-medium text-[10px] text-slate-400 tracking-normal mt-0.5">업로드 또는 붙여넣기 · 최대 4장</div>
+                      <div>{t('photos')}</div>
+                      <div className="font-medium text-[10px] text-slate-400 tracking-normal mt-0.5">{t('photosHint')}</div>
                     </th>
                   </tr>
                 </thead>
@@ -1574,11 +1588,11 @@ function MissionFieldView({
                     <tr>
                       <td colSpan={missionField.name === 'Other Nations' ? 5 : 4} className="px-6 py-24 text-center bg-white">
                         <Users className="w-12 h-12 mx-auto text-slate-200 mb-4" />
-                        <p className="text-lg font-bold text-slate-400 mb-2">{missionField.name} 수혜자 데이터가 없습니다.</p>
+                        <p className="text-lg font-bold text-slate-400 mb-2">{t('noRecipients')}</p>
                         <p className="text-sm text-slate-300">
                           {isAdmin
-                            ? "수혜자를 추가하거나 Sync 버튼으로 명단을 채울 수 있습니다."
-                            : "디렉터가 미션 데이터를 준비하고 있습니다."}
+                            ? t('noRecipientsAdmin')
+                            : t('noRecipientsGuest')}
                         </p>
                       </td>
                     </tr>
@@ -1677,6 +1691,7 @@ function MissionFieldView({
 }
 
 function RecipientPhotosCell({ supporter, isAdmin, handleLogin, size = 'sm' }: { supporter: Supporter, isAdmin: boolean, handleLogin?: () => void, size?: 'sm' | 'lg' }) {
+  const { t } = useI18n();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [photoUrls, setPhotoUrls] = useState<string[]>(supporter.photoUrls || []);
   const [isUploading, setIsUploading] = useState(false);
@@ -1807,7 +1822,7 @@ function RecipientPhotosCell({ supporter, isAdmin, handleLogin, size = 'sm' }: {
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
             <label className="px-2 py-1 rounded-md bg-white border border-slate-200 text-[10px] font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-700 transition-all flex items-center gap-1 cursor-pointer">
               {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImagePlus className="w-3 h-3" />}
-              업로드
+              {t('upload')}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1827,7 +1842,7 @@ function RecipientPhotosCell({ supporter, isAdmin, handleLogin, size = 'sm' }: {
               className="px-2 py-1 rounded-md bg-white border border-slate-200 text-[10px] font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-700 transition-all flex items-center gap-1"
             >
               <ClipboardPaste className="w-3 h-3" />
-              붙여넣기
+              {t('paste')}
             </button>
             <span className="text-[9px] text-slate-400 font-medium">{photoUrls.length}/{MAX_RECIPIENT_PHOTOS}</span>
           </div>
@@ -1872,11 +1887,18 @@ function CambodiaSupporterRow({ supporter, isAdmin, handleLogin, variant = 'row'
   showNationality?: boolean,
   key?: string
 }) {
+  const { t, locale } = useI18n();
   const composed = composeCambodiaFields(supporter);
   const [localName, setLocalName] = useState(composed.name);
   const [localNationality, setLocalNationality] = useState(supporter.nationality || '');
   const [localSituation, setLocalSituation] = useState(composed.situation);
   const [localOther, setLocalOther] = useState(composed.other);
+  const [viewName, setViewName] = useState(composed.name);
+  const [viewNationality, setViewNationality] = useState(supporter.nationality || '');
+  const [viewSituation, setViewSituation] = useState(composed.situation);
+  const [viewOther, setViewOther] = useState(composed.other);
+  const [isLocalizing, setIsLocalizing] = useState(false);
+  const canEditContent = isAdmin && locale === 'mixed';
 
   useEffect(() => {
     const next = composeCambodiaFields(supporter);
@@ -1899,8 +1921,45 @@ function CambodiaSupporterRow({ supporter, isAdmin, handleLogin, variant = 'row'
     supporter.otherNotes
   ]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const source = {
+      name: composed.name,
+      situation: composed.situation,
+      other: composed.other,
+      nationality: supporter.nationality || '',
+    };
+    if (locale === 'mixed') {
+      setViewName(source.name);
+      setViewNationality(source.nationality);
+      setViewSituation(source.situation);
+      setViewOther(source.other);
+      setIsLocalizing(false);
+      return;
+    }
+    setIsLocalizing(true);
+    localizeRecipientCopy(source, locale).then((localized) => {
+      if (cancelled) return;
+      setViewName(localized.name);
+      setViewNationality(localized.nationality);
+      setViewSituation(localized.situation);
+      setViewOther(localized.other);
+      setIsLocalizing(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    locale,
+    composed.name,
+    composed.situation,
+    composed.other,
+    supporter.nationality,
+    supporter.id
+  ]);
+
   const handleUpdate = async () => {
-    if (!isAdmin) return;
+    if (!canEditContent) return;
     try {
       await updateDoc(doc(db, 'supporters', supporter.id), {
         nameEn: localName,
@@ -1916,15 +1975,21 @@ function CambodiaSupporterRow({ supporter, isAdmin, handleLogin, variant = 'row'
     }
   };
 
+  const displayName = canEditContent ? localName : viewName;
+  const displayNationality = canEditContent ? localNationality : viewNationality;
+  const displaySituation = canEditContent ? localSituation : viewSituation;
+  const displayOther = canEditContent ? localOther : viewOther;
+
   const cellInputClass = cn(
     "w-full outline-none px-3 py-2 rounded-lg transition-all text-sm leading-relaxed",
-    isAdmin ? "bg-slate-50 border border-slate-200 focus:border-slate-400 focus:bg-white" : "bg-transparent border-transparent cursor-default"
+    canEditContent ? "bg-slate-50 border border-slate-200 focus:border-slate-400 focus:bg-white" : "bg-transparent border-transparent cursor-default",
+    isLocalizing && locale !== 'mixed' && "opacity-70"
   );
 
   const deleteButton = isAdmin ? (
     <button
       onClick={async () => {
-        if (confirm('이 수혜자를 삭제할까요?')) {
+        if (confirm(t('deleteRecipient'))) {
           await deleteDoc(doc(db, 'supporters', supporter.id));
         }
       }}
@@ -1943,69 +2008,69 @@ function CambodiaSupporterRow({ supporter, isAdmin, handleLogin, variant = 'row'
       <article className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-4 min-w-0">
         <div className="flex items-start gap-2">
           <div className="flex-1 min-w-0">
-            {isAdmin ? (
+            {canEditContent ? (
               <>
-                <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-1">수혜자 이름</p>
+                <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('recipientName')}</p>
                 <input
                   type="text"
                   value={localName}
                   onChange={(e) => setLocalName(e.target.value)}
                   onBlur={handleUpdate}
                   className="w-full outline-none px-3 py-2 rounded-lg font-bold text-[18px] leading-snug text-slate-900 bg-slate-50 border border-slate-200 focus:border-slate-400"
-                  placeholder="수혜자 이름"
+                  placeholder={t('recipientName')}
                 />
               </>
             ) : (
-              <h3 className="text-[18px] font-black text-slate-900 leading-snug break-words">{localName || '이름 없음'}</h3>
+              <h3 className="text-[18px] font-black text-slate-900 leading-snug break-words">{displayName || t('unnamed')}</h3>
             )}
           </div>
           {deleteButton}
         </div>
         {showNationality && (
           <div className="min-w-0">
-            <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">국적</p>
-            {isAdmin ? (
+            <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">{t('nationality')}</p>
+            {canEditContent ? (
               <input
                 type="text"
                 value={localNationality}
                 onChange={(e) => setLocalNationality(e.target.value)}
                 onBlur={handleUpdate}
                 className="w-full outline-none px-3 py-2 rounded-lg text-[16px] text-slate-800 bg-slate-50 border border-slate-200 focus:border-slate-400"
-                placeholder="국적"
+                placeholder={t('nationality')}
               />
             ) : (
-              <p className="text-[16px] leading-7 text-slate-800 break-words">{localNationality || <span className="text-slate-400">국적</span>}</p>
+              <p className="text-[16px] leading-7 text-slate-800 break-words">{displayNationality || <span className="text-slate-400">{t('nationality')}</span>}</p>
             )}
           </div>
         )}
         <div className="min-w-0">
-          <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">현재상황 및 기도제목</p>
+          <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">{t('situationPrayer')}</p>
           <ExpandingField
-            value={localSituation}
+            value={canEditContent ? localSituation : displaySituation}
             onChange={setLocalSituation}
             onBlur={handleUpdate}
-            readOnly={!isAdmin}
-            placeholder="현재상황 및 기도제목"
+            readOnly={!canEditContent}
+            placeholder={t('situationPrayer')}
             minHeight={120}
             className="text-slate-800"
           />
         </div>
-        {(isAdmin || localOther.trim()) && (
+        {(canEditContent || displayOther.trim()) && (
           <div className="min-w-0">
-            <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">기타</p>
+            <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">{t('other')}</p>
             <ExpandingField
-              value={localOther}
+              value={canEditContent ? localOther : displayOther}
               onChange={setLocalOther}
               onBlur={handleUpdate}
-              readOnly={!isAdmin}
-              placeholder="기타"
+              readOnly={!canEditContent}
+              placeholder={t('other')}
               minHeight={72}
               className="text-slate-600"
             />
           </div>
         )}
         <div className="min-w-0">
-          <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">사진</p>
+          <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">{t('photos')}</p>
           <RecipientPhotosCell
             supporter={supporter}
             isAdmin={isAdmin}
@@ -2022,46 +2087,46 @@ function CambodiaSupporterRow({ supporter, isAdmin, handleLogin, variant = 'row'
       <td className="w-48 px-3 py-3 border-r border-slate-100">
         <input
           type="text"
-          value={localName}
+          value={canEditContent ? localName : displayName}
           onChange={(e) => setLocalName(e.target.value)}
           onBlur={handleUpdate}
-          readOnly={!isAdmin}
+          readOnly={!canEditContent}
           className={cn(cellInputClass, "font-bold text-slate-800")}
-          placeholder="수혜자 이름"
+          placeholder={t('recipientName')}
         />
       </td>
       {showNationality && (
         <td className="w-36 px-3 py-3 border-r border-slate-100">
           <input
             type="text"
-            value={localNationality}
+            value={canEditContent ? localNationality : displayNationality}
             onChange={(e) => setLocalNationality(e.target.value)}
             onBlur={handleUpdate}
-            readOnly={!isAdmin}
+            readOnly={!canEditContent}
             className={cn(cellInputClass, "text-slate-700")}
-            placeholder="국적"
+            placeholder={t('nationality')}
           />
         </td>
       )}
       <td className="px-3 py-3 border-r border-slate-100">
         <textarea
-          value={localSituation}
+          value={canEditContent ? localSituation : displaySituation}
           onChange={(e) => setLocalSituation(e.target.value)}
           onBlur={handleUpdate}
-          readOnly={!isAdmin}
+          readOnly={!canEditContent}
           className={cn(cellInputClass, "resize-y min-h-[72px] text-slate-700")}
-          placeholder="현재상황 및 기도제목"
+          placeholder={t('situationPrayer')}
         />
       </td>
       <td className="w-56 px-3 py-3 border-r border-slate-100">
         <div className="flex items-start gap-2">
           <textarea
-            value={localOther}
+            value={canEditContent ? localOther : displayOther}
             onChange={(e) => setLocalOther(e.target.value)}
             onBlur={handleUpdate}
-            readOnly={!isAdmin}
+            readOnly={!canEditContent}
             className={cn(cellInputClass, "resize-y min-h-[72px] text-slate-600")}
-            placeholder="기타"
+            placeholder={t('other')}
           />
           {deleteButton}
         </div>
@@ -2363,12 +2428,13 @@ function ActivityCard({ activity, isAdmin }: { activity: Activity, isAdmin: bool
 }
 
 function DonationSection() {
+  const { t } = useI18n();
   return (
     <div className="max-w-4xl mx-auto">
       <div className="card p-12 bg-white shadow-2xl shadow-sage-200/30 border-none">
         <div className="text-center mb-12">
-          <h3 className="text-4xl font-serif font-bold text-slate-800 mb-10">Support Our Mission</h3>
-          <h4 className="font-bold text-xl mb-3 text-slate-800">Write and Send Checks</h4>
+          <h3 className="text-4xl font-serif font-bold text-slate-800 mb-10">{t('supportTitle')}</h3>
+          <h4 className="font-bold text-xl mb-3 text-slate-800">{t('writeChecks')}</h4>
           <div className="text-slate-500 text-sm leading-relaxed max-w-lg mx-auto space-y-1">
             <p>MBOF (Mission Blessings Outreach Foundation)</p>
             <p>9781 Harle Ave</p>
@@ -2382,8 +2448,8 @@ function DonationSection() {
               <QrCode className="w-8 h-8 text-slate-600" />
             </div>
             <div>
-              <h4 className="font-bold text-xl mb-3 text-slate-800">Scan to Donate</h4>
-              <p className="text-slate-500 text-sm mb-6 leading-relaxed">Secure Zelle donation for Mission Blessings Outreach Foundation.</p>
+              <h4 className="font-bold text-xl mb-3 text-slate-800">{t('scanToDonate')}</h4>
+              <p className="text-slate-500 text-sm mb-6 leading-relaxed">{t('scanBlurb')}</p>
               <div className="w-[320px] mx-auto bg-white border border-slate-200 rounded-3xl flex flex-col items-center overflow-hidden shadow-2xl">
                 <div className="flex flex-col items-center pt-6 pb-6 px-5 w-full">
                   <h3 className="text-[14px] font-[900] text-slate-900 tracking-tighter text-center leading-none mb-6">
@@ -2408,14 +2474,14 @@ function DonationSection() {
               <Home className="w-8 h-8 text-slate-600" />
             </div>
             <div className="w-full">
-              <h4 className="font-bold text-xl mb-3 text-slate-800">Bank Transfer</h4>
+              <h4 className="font-bold text-xl mb-3 text-slate-800">{t('bankTransfer')}</h4>
               <div className="bg-sage-50/50 p-8 rounded-[2.5rem] space-y-4 border border-sage-100">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Bank Name</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('bankName')}</p>
                   <p className="font-bold text-slate-700">Bank of America</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Account Name</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('accountName')}</p>
                   <p className="font-bold text-slate-700">Mission Blessings Outreach Foundation</p>
                 </div>
               </div>
@@ -2423,12 +2489,16 @@ function DonationSection() {
           </div>
 
           <div className="w-full max-w-2xl text-center">
-            <p className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">
-              ALL DONATIONS ARE TAX DEDUCTIBLE
-            </p>
-            <p className="mt-2 text-sm md:text-base font-medium text-slate-500">
-              모든 후원금은 세금 공제 혜택을 받을 수 있습니다
-            </p>
+            {t('taxDeductibleEn') && (
+              <p className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">
+                {t('taxDeductibleEn')}
+              </p>
+            )}
+            {t('taxDeductibleKo') && (
+              <p className={cn("text-sm md:text-base font-medium text-slate-500", t('taxDeductibleEn') && "mt-2")}>
+                {t('taxDeductibleKo')}
+              </p>
+            )}
           </div>
 
           <div className="pt-12 border-t border-slate-100 w-full text-center">
@@ -2438,9 +2508,9 @@ function DonationSection() {
               </div>
               <div className="relative z-10">
                 <Heart className="w-12 h-12 text-white fill-white mx-auto mb-6 drop-shadow-lg" />
-                <h4 className="text-3xl font-serif font-black mb-4">Your Gift Matters</h4>
+                <h4 className="text-3xl font-serif font-black mb-4">{t('yourGift')}</h4>
                 <p className="text-cyan-50 font-bold leading-relaxed mx-auto max-w-lg text-lg">
-                  Every donation goes directly to supporting our mission fields and bringing hope to those in need.
+                  {t('yourGiftBody')}
                 </p>
               </div>
             </div>
@@ -2451,6 +2521,7 @@ function DonationSection() {
   );
 }
 function PrayerRoomView({ prayerRequests, user, isAdmin }: { prayerRequests: PrayerRequest[], user: User | null, isAdmin: boolean }) {
+  const { t } = useI18n();
   const [content, setContent] = useState('');
   const [name, setName] = useState('');
   const [type, setType] = useState<'Request' | 'Thanksgiving'>('Request');
@@ -2495,9 +2566,9 @@ function PrayerRoomView({ prayerRequests, user, isAdmin }: { prayerRequests: Pra
   return (
     <div className="max-w-4xl mx-auto space-y-12">
       <div className="text-center">
-        <h3 className="text-4xl font-serif font-bold text-slate-800 mb-4">Prayer Room</h3>
+        <h3 className="text-4xl font-serif font-bold text-slate-800 mb-4">{t('prayerTitle')}</h3>
         <p className="text-slate-500 font-medium max-w-2xl mx-auto">
-          Share your prayer requests and thanksgiving with our community. We believe in the power of prayer and the joy of gratitude.
+          {t('prayerBlurb')}
         </p>
       </div>
 
@@ -2505,12 +2576,12 @@ function PrayerRoomView({ prayerRequests, user, isAdmin }: { prayerRequests: Pra
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 ml-4">Your Name (Optional)</label>
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 ml-4">{t('yourNameOptional')}</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Anonymous"
+                placeholder={t('anonymous')}
                 className="w-full px-8 py-4 bg-sage-50 rounded-2xl outline-none border-2 border-transparent focus:border-sage-600 focus:bg-white transition-all font-medium text-slate-700 placeholder:text-slate-300 h-[60px]"
               />
             </div>
@@ -2524,7 +2595,7 @@ function PrayerRoomView({ prayerRequests, user, isAdmin }: { prayerRequests: Pra
                     type === 'Request' ? "bg-slate-500 border-slate-500 text-white shadow-md shadow-slate-100" : "bg-slate-50 border-transparent text-slate-400 hover:bg-slate-100"
                   )}
                 >
-                  Prayer Request
+                  {t('prayerRequest')}
                 </button>
                 <button
                   type="button"
@@ -2534,7 +2605,7 @@ function PrayerRoomView({ prayerRequests, user, isAdmin }: { prayerRequests: Pra
                     type === 'Thanksgiving' ? "bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-100" : "bg-sage-50 border-transparent text-slate-400 hover:bg-sage-100"
                   )}
                 >
-                  Thanksgiving
+                  {t('thanksgiving')}
                 </button>
               </div>
             </div>
@@ -2564,8 +2635,8 @@ function PrayerRoomView({ prayerRequests, user, isAdmin }: { prayerRequests: Pra
       <div className="pt-12 border-t border-slate-100">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
           <div>
-            <h4 className="text-2xl font-serif font-bold text-slate-800">Community Prayer Wall</h4>
-            <p className="text-sm text-slate-400 font-medium mt-1">A collection of our shared journey in faith.</p>
+            <h4 className="text-2xl font-serif font-bold text-slate-800">{t('communityWall')}</h4>
+            <p className="text-sm text-slate-400 font-medium mt-1">{t('communityWallSub')}</p>
           </div>
           <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl w-full md:w-[400px]">
             {(['Request', 'Thanksgiving', 'All'] as const).map((f) => (
@@ -2581,7 +2652,7 @@ function PrayerRoomView({ prayerRequests, user, isAdmin }: { prayerRequests: Pra
                     : "text-slate-400 hover:text-slate-600"
                 )}
               >
-                {f === 'All' ? `All (${prayerRequests.length})` : f}
+                {f === 'All' ? `${t('all')} (${prayerRequests.length})` : f === 'Request' ? t('prayerRequest') : t('thanksgiving')}
               </button>
             ))}
           </div>
@@ -2603,7 +2674,9 @@ function PrayerRoomView({ prayerRequests, user, isAdmin }: { prayerRequests: Pra
               </div>
               <div className="flex-grow">
                 <div className="flex justify-between items-start mb-4">
-                  <h4 className="text-xl font-serif font-bold text-slate-800">{request.userName}</h4>
+                  <h4 className="text-xl font-serif font-bold text-slate-800">
+                    <LocalizedText text={request.userName} as="span" />
+                  </h4>
                   <div className="flex items-center gap-6">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
                       {request.createdAt?.toDate?.().toLocaleDateString() || 'Just now'}
@@ -2627,7 +2700,10 @@ function PrayerRoomView({ prayerRequests, user, isAdmin }: { prayerRequests: Pra
                     {request.type}
                   </span>
                 </div>
-                <p className="text-slate-600 leading-relaxed font-medium text-lg whitespace-pre-wrap">{request.content}</p>
+                <LocalizedText
+                  text={request.content}
+                  className="text-slate-600 leading-relaxed font-medium text-lg whitespace-pre-wrap"
+                />
               </div>
             </div>
           </motion.div>
@@ -2889,6 +2965,7 @@ function AddDonorModal({ onClose }: { onClose: () => void }) {
 }
 
 function AddSupporterModal({ onClose, missionFieldId, simplified = false }: { onClose: () => void, missionFieldId: string, simplified?: boolean }) {
+  const { t } = useI18n();
   const [formData, setFormData] = useState({
     nameEn: '',
     isPastor: false,
@@ -2936,27 +3013,27 @@ function AddSupporterModal({ onClose, missionFieldId, simplified = false }: { on
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-xl rounded-[2.5rem] p-10 shadow-2xl">
-        <h3 className="text-3xl font-bold mb-8">{simplified ? '수혜자 추가' : 'Add New Recipient'}</h3>
+        <h3 className="text-3xl font-bold mb-8">{simplified ? t('addRecipientTitle') : t('addRecipient')}</h3>
         <form onSubmit={handleSubmit} className="space-y-6">
           {simplified ? (
             <>
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">수혜자 이름</label>
-                <input type="text" required className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all" value={formData.nameEn} onChange={e => setFormData({...formData, nameEn: e.target.value})} placeholder="이름" />
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('recipientName')}</label>
+                <input type="text" required className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all" value={formData.nameEn} onChange={e => setFormData({...formData, nameEn: e.target.value})} placeholder={t('namePlaceholder')} />
               </div>
               {isOtherNations && (
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">국적</label>
-                  <input type="text" className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all" value={formData.nationality} onChange={e => setFormData({...formData, nationality: e.target.value})} placeholder="국적" />
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('nationality')}</label>
+                  <input type="text" className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all" value={formData.nationality} onChange={e => setFormData({...formData, nationality: e.target.value})} placeholder={t('nationality')} />
                 </div>
               )}
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">현재상황 및 기도제목</label>
-                <textarea className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all min-h-[140px]" value={formData.needs} onChange={e => setFormData({...formData, needs: e.target.value})} placeholder="현재 상황과 기도제목을 적어 주세요" />
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('situationPrayer')}</label>
+                <textarea className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all min-h-[140px]" value={formData.needs} onChange={e => setFormData({...formData, needs: e.target.value})} placeholder={t('situationPlaceholder')} />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">기타</label>
-                <textarea className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all min-h-[80px]" value={formData.otherNotes} onChange={e => setFormData({...formData, otherNotes: e.target.value})} placeholder="기타 메모" />
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('other')}</label>
+                <textarea className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all min-h-[80px]" value={formData.otherNotes} onChange={e => setFormData({...formData, otherNotes: e.target.value})} placeholder={t('otherPlaceholder')} />
               </div>
             </>
           ) : (
@@ -2998,8 +3075,8 @@ function AddSupporterModal({ onClose, missionFieldId, simplified = false }: { on
             </>
           )}
           <div className="flex gap-4 pt-4">
-            <button type="button" onClick={onClose} className="flex-1 btn-secondary">{simplified ? '취소' : 'Cancel'}</button>
-            <button type="submit" className="flex-1 btn-primary">{simplified ? '추가' : 'Add Recipient'}</button>
+            <button type="button" onClick={onClose} className="flex-1 btn-secondary">{t('cancel')}</button>
+            <button type="submit" className="flex-1 btn-primary">{simplified ? t('add') : t('addRecipient')}</button>
           </div>
         </form>
       </motion.div>
@@ -3509,12 +3586,17 @@ const STATIC_VIDEOS: GalleryVideo[] = [
 ];
 
 function YouTubeGallerySection({ setActiveVideoId, isAdmin, handleLogin }: { setActiveVideoId: (id: string | null) => void, isAdmin: boolean, handleLogin: () => void }) {
+  const { locale } = useI18n();
   const [filter, setFilter] = useState<'all' | 'ko' | 'en'>('all');
   const [showUpload, setShowUpload] = useState(false);
   const [videos, setVideos] = useState(STATIC_VIDEOS);
   const [isSaving, setIsSaving] = useState(false);
   const [editUrls, setEditUrls] = useState<Record<string, string>>({});
   const [editTitles, setEditTitles] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setFilter(locale === 'en' ? 'en' : locale === 'ko' ? 'ko' : 'all');
+  }, [locale]);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'gallery_videos'), (snapshot) => {
