@@ -142,10 +142,7 @@ function composeCambodiaFields(supporter: Supporter) {
 
   const other = typeof supporter.otherNotes === 'string'
     ? supporter.otherNotes
-    : uniqueNonEmpty([
-        hasHangul(supporter.additionalNotes) ? '' : supporter.additionalNotes,
-        supporter.nationality,
-      ]).join('\n');
+    : (hasHangul(supporter.additionalNotes) ? '' : (supporter.additionalNotes || ''));
 
   return { name, situation, other };
 }
@@ -800,6 +797,7 @@ export default function App() {
         const row = composeCambodiaFields(s);
         return {
           '수혜자 이름': row.name,
+          ...(activeSubTab === 'other' ? { '국적': s.nationality || '' } : {}),
           '현재상황 및 기도제목': row.situation,
           '기타': row.other,
         };
@@ -1521,6 +1519,7 @@ function MissionFieldView({
                 isAdmin={isAdmin}
                 handleLogin={handleLogin}
                 variant="card"
+                showNationality={missionField.name === 'Other Nations'}
               />
             ))}
             {sortedSupporters.length === 0 && (
@@ -1549,6 +1548,9 @@ function MissionFieldView({
                         <SortIcon column="nameEn" />
                       </div>
                     </th>
+                    {missionField.name === 'Other Nations' && (
+                      <th className="w-36 px-4 py-3 border-r border-slate-200 font-black text-slate-700 text-sm">국적</th>
+                    )}
                     <th className="px-4 py-3 border-r border-slate-200 font-black text-slate-700 text-sm">현재상황 및 기도제목</th>
                     <th className="w-56 px-4 py-3 border-r border-slate-200 font-black text-slate-700 text-sm">기타</th>
                     <th className="w-80 px-4 py-3 font-black text-slate-700 text-sm">
@@ -1565,11 +1567,12 @@ function MissionFieldView({
                       isAdmin={isAdmin}
                       handleLogin={handleLogin}
                       variant="row"
+                      showNationality={missionField.name === 'Other Nations'}
                     />
                   ))}
                   {sortedSupporters.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-6 py-24 text-center bg-white">
+                      <td colSpan={missionField.name === 'Other Nations' ? 5 : 4} className="px-6 py-24 text-center bg-white">
                         <Users className="w-12 h-12 mx-auto text-slate-200 mb-4" />
                         <p className="text-lg font-bold text-slate-400 mb-2">{missionField.name} 수혜자 데이터가 없습니다.</p>
                         <p className="text-sm text-slate-300">
@@ -1861,27 +1864,31 @@ function RecipientPhotosCell({ supporter, isAdmin, handleLogin, size = 'sm' }: {
   );
 }
 
-function CambodiaSupporterRow({ supporter, isAdmin, handleLogin, variant = 'row' }: {
+function CambodiaSupporterRow({ supporter, isAdmin, handleLogin, variant = 'row', showNationality = false }: {
   supporter: Supporter,
   isAdmin: boolean,
   handleLogin?: () => void,
   variant?: 'row' | 'card',
+  showNationality?: boolean,
   key?: string
 }) {
   const composed = composeCambodiaFields(supporter);
   const [localName, setLocalName] = useState(composed.name);
+  const [localNationality, setLocalNationality] = useState(supporter.nationality || '');
   const [localSituation, setLocalSituation] = useState(composed.situation);
   const [localOther, setLocalOther] = useState(composed.other);
 
   useEffect(() => {
     const next = composeCambodiaFields(supporter);
     setLocalName(next.name);
+    setLocalNationality(supporter.nationality || '');
     setLocalSituation(next.situation);
     setLocalOther(next.other);
   }, [
     supporter.id,
     supporter.nameEn,
     supporter.nameKh,
+    supporter.nationality,
     supporter.faithStatus,
     supporter.area,
     supporter.needs,
@@ -1897,6 +1904,7 @@ function CambodiaSupporterRow({ supporter, isAdmin, handleLogin, variant = 'row'
     try {
       await updateDoc(doc(db, 'supporters', supporter.id), {
         nameEn: localName,
+        ...(showNationality ? { nationality: localNationality } : {}),
         needs: localSituation,
         situationPrayer: localSituation,
         additionalNotes: localOther,
@@ -1953,6 +1961,23 @@ function CambodiaSupporterRow({ supporter, isAdmin, handleLogin, variant = 'row'
           </div>
           {deleteButton}
         </div>
+        {showNationality && (
+          <div className="min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">국적</p>
+            {isAdmin ? (
+              <input
+                type="text"
+                value={localNationality}
+                onChange={(e) => setLocalNationality(e.target.value)}
+                onBlur={handleUpdate}
+                className="w-full outline-none px-3 py-2 rounded-lg text-[16px] text-slate-800 bg-slate-50 border border-slate-200 focus:border-slate-400"
+                placeholder="국적"
+              />
+            ) : (
+              <p className="text-[16px] leading-7 text-slate-800 break-words">{localNationality || <span className="text-slate-400">국적</span>}</p>
+            )}
+          </div>
+        )}
         <div className="min-w-0">
           <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">현재상황 및 기도제목</p>
           <ExpandingField
@@ -2005,6 +2030,19 @@ function CambodiaSupporterRow({ supporter, isAdmin, handleLogin, variant = 'row'
           placeholder="수혜자 이름"
         />
       </td>
+      {showNationality && (
+        <td className="w-36 px-3 py-3 border-r border-slate-100">
+          <input
+            type="text"
+            value={localNationality}
+            onChange={(e) => setLocalNationality(e.target.value)}
+            onBlur={handleUpdate}
+            readOnly={!isAdmin}
+            className={cn(cellInputClass, "text-slate-700")}
+            placeholder="국적"
+          />
+        </td>
+      )}
       <td className="px-3 py-3 border-r border-slate-100">
         <textarea
           value={localSituation}
@@ -2864,6 +2902,8 @@ function AddSupporterModal({ onClose, missionFieldId, simplified = false }: { on
     otherNotes: ''
   });
 
+  const isOtherNations = missionFieldId.includes('other');
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -2877,6 +2917,7 @@ function AddSupporterModal({ onClose, missionFieldId, simplified = false }: { on
         situationPrayer: formData.needs,
         additionalNotes: formData.otherNotes,
         otherNotes: formData.otherNotes,
+        nationality: isOtherNations ? formData.nationality : '',
         missionFieldId,
         qrCodeData: '',
         updatedAt: Timestamp.now()
@@ -2892,8 +2933,6 @@ function AddSupporterModal({ onClose, missionFieldId, simplified = false }: { on
     }
   };
 
-  const isOtherNations = missionFieldId.includes('other');
-
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-xl rounded-[2.5rem] p-10 shadow-2xl">
@@ -2905,6 +2944,12 @@ function AddSupporterModal({ onClose, missionFieldId, simplified = false }: { on
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">수혜자 이름</label>
                 <input type="text" required className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all" value={formData.nameEn} onChange={e => setFormData({...formData, nameEn: e.target.value})} placeholder="이름" />
               </div>
+              {isOtherNations && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">국적</label>
+                  <input type="text" className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all" value={formData.nationality} onChange={e => setFormData({...formData, nationality: e.target.value})} placeholder="국적" />
+                </div>
+              )}
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">현재상황 및 기도제목</label>
                 <textarea className="w-full p-4 bg-emerald-50 rounded-2xl outline-none border-2 border-transparent focus:border-emerald-200 transition-all min-h-[140px]" value={formData.needs} onChange={e => setFormData({...formData, needs: e.target.value})} placeholder="현재 상황과 기도제목을 적어 주세요" />
